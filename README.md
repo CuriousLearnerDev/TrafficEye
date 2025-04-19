@@ -1,3 +1,10 @@
+已经打包好的下载地址：
+
+GIhutb下载地址：https://github.com/CuriousLearnerDev/TrafficEye/releases
+
+夸克网盘：链接：https://pan.quark.cn/s/c0967e0b2e86 提取码：Cv49
+
+
 ## 最近研发进度
 
 2025-04-19：完善基本AI危险识别模块
