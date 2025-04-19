@@ -1,0 +1,394 @@
+# 模块功能: 核心处理模块：处理 HTTP 请求/响应数据的解析和转换
+# 作者: W啥都学
+# 创建日期: 2025-02-27
+# 修改时间：2025-04-19
+
+# 识别log文件内容类型
+log_formats:
+  f5_healthcheck: '^\d+\.\d+\.\d+\.\d+\s+-\s+-\s+\[.*\]\s+"GET\s+/f5[_\w]+\s+HTTP/1\.1"\s+\d+\s+\d+'
+  apache_access: '^\d+\.\d+\.\d+\.\d+\s+-\s+-\s+\[\d{2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2}\s+[+-]\d{4}\]\s+"\w+\s+[^"]+\s+HTTP/\d\.\d"\s+\d+\s+\d+'
+  nginx_access: '^\d+\.\d+\.\d+\.\d+\s+-\s+-\s+\[\d{2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2}\s+[+-]\d{4}\]\s+"\w+\s+[^"]+\s+HTTP/\d\.\d"\s+\d+\s+\d+\s+"[^"]*"\s+"[^"]*"'
+  json_log: '^\s*\{.*\}\s*$'
+  haproxy_access: '^\w{3}\s+\d+\s+\d+:\d+:\d+\s+\S+\s+haproxy\[\d+\]:\s+\d+\.\d+\.\d+\.\d+:\d+\s+\[.+\]\s+.+\s+.+\s+\d+/\d+/\d+/\d+/\d+\s+\d+\s+\d+\s+.+\s+".+"$'
+  iis_log: '^\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2}\s+\S+\s+[A-Z]+\s+\S+\s+\S+\s+\d+\s+\S+\s+[\d\.]+\s+.+\s+\d{3}\s+\d+\s+\d+\s+\d+'
+  tomcat_access_log: '^\d+\.\d+\.\d+\.\d+\s+-\s+-\s+\[\d{2}/[A-Za-z]{3}/\d{4}:\d{2}:\d{2}:\d{2}\s+[+-]\d{4}\]\s+"\w+\s+\S+\s+HTTP/[\d.]+"\s+\d+\s+\d+'
+
+# 匹配出来数据
+parsers:
+  iis_log: '(?P<date>\d{4}-\d{2}-\d{2})\s+(?P<time>\d{2}:\d{2}:\d{2})\s+(?P<s_ip>\S+)\s+(?P<method>[A-Z]+)\s+(?P<path>\S+)\s+(?P<query>\S+)\s+(?P<port>\d+)\s+(?P<username>\S+)\s+(?P<client_ip>[0-9a-fA-F:.]+)\s+(?P<user_agent>.+?)\s+(?P<status_code>\d{3})\s+\d+\s+\d+\s+(?P<time_taken>\d+)'
+  haproxy_access: '\S+\s+\S+\s+\S+\s+\[\d+\]:\s+(?P<ip>[0-9a-fA-F:.]+):\d+\s+\[(?P<timestamp>[^\]]+)\]\s+(?P<frontend>\S+)\s+(?P<backend>\S+/\S+)\s+\d+/\d+/\d+/\d+/\d+\s+(?P<status_code>\d{3})\s+(?P<size>\d+)\s+[^"]*"(?P<method>[A-Z]+)\s+(?P<path>[^ ]+)\s+HTTP/[^"]+"'
+  access_log: '(?P<ip>[0-9a-fA-F:.]+)\s+[^ ]+\s+[^ ]+\s+\[(?P<timestamp>[^\]]+)\]\s+"(?P<method>[A-Z]+)\s+(?P<path>[^ ]+)\s+HTTP/[^"]+"\s+(?P<status_code>\d{3})\s+(?P<size>\d+|-)\s+"(?P<referer>[^"]*)"\s+"(?P<user_agent>[^"]*)"'
+
+
+# 安全检测
+safety_testing:
+  suffix_detection:
+    name:
+      - "信息泄露/目录遍历"
+      - "敏感文件泄露"
+    rules:
+      - >-
+        \.(?:bash_history|git|sh|bash|csh|zsh|ps|git\\config|npm\\_logs|env|swp|bak|old|backup|sql|db|mdb|log|cfg|conf|config|ini|txt|xml|json|yml|yaml|pem|key|crt|cer|ppk|rdp|ovpn|kdbx|DS_Store|htaccess|htpasswd|gitignore|svn|hg|cvs|idea|vscode|sublime-project|sublime-workspace)$
+      - >-
+        /(?:\.git/|\.svn/|\.hg/|\.DS_Store|\.env|\.htaccess|\.htpasswd|\.bash_history|\.ssh/|\.npm/|\.cache/|\.config/|\.local/|\.docker/|\.kube/)
+  directory_traversal:
+    name:
+      - "目录遍历"
+      - "路径遍历攻击"
+    rules:
+      - >-
+        (?i)(?:(?:[/\\x5c]|%(?:2(?:f|5(?:2f|5c|c(?:1%259c|0%25af))|%46)|5c|c(?:0%(?:[2aq]f|5c|9v)|1%(?:[19p]c|8s|af))|(?:bg%q|(?:e|f(?:8%8)?0%8)0%80%a)f|u(?:221[56]|EFC8|F025|002f)|%3(?:2(?:%(?:%6|4)6|F)|5%%63)|1u)|0x(?:2f|5c))(?:\.(?:%0[01]|\?)?|\?\.?|%(?:2(?:(?:5(?:2|c0%25a))?e|%45)|c0(?:\.|%[256aef]e)|u(?:(?:ff0|002)e|2024)|%32(?:%(?:%6|4)5|E)|(?:e|f(?:(?:8|c%80)%8)?0%8)0%80%ae)|0x2e){2,3}(?:[/\\x5c]|%(?:2(?:f|5(?:2f|5c|c(?:1%259c|0%25af))|%46)|5c|c(?:0%(?:[2aq]f|5c|9v)|1%(?:[19p]c|8s|af))|(?:bg%q|(?:e|f(?:8%8)?0%8)0%80%a)f|u(?:221[56]|EFC8|F025|002f)|%3(?:2(?:%(?:%6|4)6|F)|5%%63)|1u)|0x(?:2f|5c)))|(?:(?:^|[\\x5c/;])\.{2,3}[\\x5c/;]|[\\x5c/;]\.{2,3}[\\x5c/;])
+      - >-
+        (?:\.\./|\.\.\\|%2e%2e%2f|%252e%252e%252f|%2e%2e\/|\.%2e/|%2e%2e\\|\.%2e\\)
+      - >-
+        /(?:etc/shadow|boot\.ini|win\.ini|system\.ini|windows/win\.ini|proc/self/environ|proc/self/cmdline)
+  rce_detection:
+    name:
+      - "远程文件包含"
+      - "本地文件包含"
+      - "远程代码执行"
+    rules:
+      - >-
+        (?:https?|ftp|php|zlib|data|glob|phar|ssh2|rar|ogg|expect|zip|compress\.bzip2|compress\.zlib|compress\.bzip2):\/\/
+      - >-
+        (?:=\s*(?:(?:https?|ftp|php|zlib|data|glob|phar|ssh2|rar|ogg|expect|zip):\/\/|(?:file|ftp|zlib|data|glob|phar|ssh2|rar|ogg|expect|zip|compress\.(?:bzip2|zlib)):\/\/|[\/\\]|[a-z]:[\/\\]))
+      - >-
+        (?:include|require|include_once|require_once|file_get_contents|fopen|readfile|file|copy|rename|unlink|mkdir|rmdir|highlight_file|show_source|phpinfo|system|exec|shell_exec|passthru|popen|proc_open|pcntl_exec|eval|assert|create_function|array_map|call_user_func|call_user_func_array|register_shutdown_function|register_tick_function|filter_var|filter_var_array|uasort|uksort|array_filter|array_reduce|array_walk|array_walk_recursive)\s*\((?:.*?\$|.*?(?:https?|ftp|php|zlib|data|glob|phar|ssh2|rar|ogg|expect|zip):\/\/)
+  sql_injection:
+    name:
+      - "SQL注入攻击"
+      - "SQL注入攻击2"
+    rules:
+      - >-
+        (?:union\s+select|select\s+.*\s+from|insert\s+into|update\s+.*\s+set|delete\s+from|drop\s+table|truncate\s+table|create\s+table|alter\s+table|exec\s*\(|xp_cmdshell|load_file|outfile|dumpfile|benchmark|sleep\s*\(|waitfor\s+delay|--|\/\*|\*\/|@@version|@@datadir|@@basedir|@@hostname|user|database|version|schema|concat|group_concat)
+      - >-
+        (?:or|and)\s+[\w'"]+\s*=\s*[\w'"]+
+  xss_detection:
+    name:
+      - "跨站脚本攻击(XSS)"
+    rules:
+      - >-
+        (<script|javascript:|on\w+\s*=|alert\s*\(|prompt\s*\(|confirm\s*\(|eval\s*\(|expression\s*\(|setTimeout\s*\(|setInterval\s*\(|document\.|window\.|location\.|href\s*=|src\s*=|innerHTML|outerHTML|appendChild|createElement|fromCharCode|%3Cscript|%22%3E%3Cscript|%27%3E%3Cscript)
+
+# 本地AI
+ollama:
+  url: 'http://localhost:11434'
+  model_name: 'codellama'
+
+# deepseek key
+deepseek_api_key:
+
+# openai key
+openai_api_key:
+
+# gemini key
+gemini_api_key:
+
+
+# 匹配二进制文件
+signatures:
+  - enabled: true
+    footer: 'cfc7cb'
+    header: '4a47040e'
+    max_size: 150000
+    type: art
+  - enabled: true
+    footer: 'd0cb0000'
+    header: '4a47030e'
+    max_size: 150000
+    type: art
+  - enabled: true
+    footer: '003b'
+    header: '474946383761'
+    max_size: 155000000
+    type: gif
+  - enabled: true
+    footer: '00003b'
+    header: '474946383961'
+    max_size: 155000000
+    type: gif
+  - enabled: true
+    footer: 'ffd9'
+    header: 'ffd8ffe00010'
+    max_size: 20000000
+    type: jpg
+  - enabled: true
+    footer: 'ffd9'
+    header: 'ffd8ffe1'
+    max_size: 20000000
+    type: jpg
+  - enabled: true
+    footer: 'ffd9'
+    header: 'ffd8'
+    max_size: 20000000
+    type: jpg
+  - enabled: true
+    footer: 'e44ae426082'
+    header: '89504e47'
+    max_size: 200000
+    type: png
+  - enabled: true
+    footer: '000000000000'
+    header: '424d'
+    max_size: 100000
+    type: bmp
+  - enabled: true
+    footer: '00000000'
+    header: '49492a00'
+    max_size: 200000000
+    type: tif
+  - enabled: true
+    footer: '00000000'
+    header: '52494646'
+    max_size: 4000000
+    type: avi
+  - enabled: true
+    footer: '00000000'
+    header: '6d6f6f76'
+    max_size: 4000000
+    type: mov
+  - enabled: true
+    footer: '00000000'
+    header: '6d646174'
+    max_size: 4000000
+    type: mov
+  - enabled: true
+    footer: '000001b9'
+    header: '000001ba'
+    max_size: 20000000
+    type: mpg
+  - enabled: true
+    footer: '000001b7'
+    header: '000001b3'
+    max_size: 20000000
+    type: mpg
+  - enabled: true
+    footer: '00000000'
+    header: '465753'
+    max_size: 4000000
+    type: fws
+  - enabled: true
+    footer: '00000000'
+    header: 'd0cf11e0a1b1'
+    max_size: 12500000
+    type: doc
+  - enabled: true
+    footer: '00000000'
+    header: '21424ea56fb5a6'
+    max_size: 400000000
+    type: pst
+  - enabled: true
+    footer: '00000000'
+    header: '2142444e'
+    max_size: 400000000
+    type: ost
+  - enabled: true
+    footer: '00000000'
+    header: 'cfad12fec5fd746f'
+    max_size: 4000000
+    type: dbx
+  - enabled: true
+    footer: '00000000'
+    header: '4a4d4639'
+    max_size: 4000000
+    type: idx
+  - enabled: true
+    footer: '00000000'
+    header: '4a4d4636'
+    max_size: 4000000
+    type: mbx
+  - enabled: true
+    footer: '00000000'
+    header: '3f575043'
+    max_size: 100000
+    type: wpc
+  - enabled: false
+    footer: '3c2f68746d6c3e'
+    header: '3c68746d6c'
+    max_size: 50000
+    type: htm
+  - enabled: true
+    footer: '2525454f4620'
+    header: '255044462d'
+    max_size: 5000000
+    type: pdf
+  - enabled: true
+    footer: '00000000'
+    header: '414f4c564d'
+    max_size: 500000
+    type: mail
+  - enabled: true
+    footer: '00000000'
+    header: '504750644d41494e6001'
+    max_size: 500000
+    type: pgd
+  - enabled: true
+    footer: '00000000'
+    header: '9900'
+    max_size: 100000
+    type: pgp
+  - enabled: true
+    footer: '00000000'
+    header: '9501'
+    max_size: 100000
+    type: pgp
+  - enabled: true
+    footer: '00000000'
+    header: '9500'
+    max_size: 100000
+    type: pgp
+  - enabled: true
+    footer: '00000000'
+    header: 'a600'
+    max_size: 100000
+    type: pgp
+  - enabled: true
+    footer: '00000000'
+    header: '2d2d2d2d2d424547494e20475050'
+    max_size: 100000
+    type: txt
+  - enabled: true
+    footer: '00000000'
+    header: 'edab'
+    max_size: 1000000
+    type: rpm
+  - enabled: true
+    footer: '00000000'
+    header: '52494646'
+    max_size: 200000
+    type: wav
+  - enabled: true
+    footer: '00000000'
+    header: '2e7261fd'
+    max_size: 1000000
+    type: ra
+  - enabled: true
+    footer: '00000000'
+    header: '2e524d46'
+    max_size: 1000000
+    type: ra
+  - enabled: true
+    footer: '00000000'
+    header: '3026b2758e66cf11a6d900aa0062ce6c'
+    max_size: 8000000
+    type: asf
+  - enabled: true
+    footer: '00000000'
+    header: '3026b2758e66cf11a6d900aa0062ce6c'
+    max_size: 20000000
+    type: wmv
+  - enabled: true
+    footer: '00000000'
+    header: '3026b275'
+    max_size: 8000000
+    type: wma
+  - enabled: true
+    footer: '529a1246'
+    header: '3026b275'
+    max_size: 8000000
+    type: wma
+  - enabled: true
+    footer: '440000'
+    header: 'fffb'
+    max_size: 8000000
+    type: mp3
+  - enabled: true
+    footer: '00000000'
+    header: '57415645'
+    max_size: 8000000
+    type: mp3
+  - enabled: true
+    footer: 'd13551cc'
+    header: 'fffb'
+    max_size: 8000000
+    type: mp3
+  - enabled: true
+    footer: '00000000'
+    header: '494433'
+    max_size: 8000000
+    type: mp3
+  - enabled: true
+    footer: '00000000'
+    header: '4c414d45'
+    max_size: 8000000
+    type: mp3
+  - enabled: true
+    footer: '00000000'
+    header: '72656766'
+    max_size: 4000000
+    type: dat
+  - enabled: true
+    footer: '00000000'
+    header: '43524547'
+    max_size: 4000000
+    type: dat
+  - enabled: true
+    footer: '00000000'
+    header: '4c0000000114020000000000c00000'
+    max_size: 5000
+    type: lnk
+  - enabled: true
+    footer: '00000000'
+    header: '495453460300000060000000010000'
+    max_size: 100000
+    type: chm
+  - enabled: false
+    footer: '00000000'
+    header: '69643d'
+    max_size: 4096
+    type: cookie
+  - enabled: true
+    footer: '00000000'
+    header: 'fffe730063007200650065006e0020006d'
+    max_size: 4096
+    type: rdp
+  - enabled: true
+    footer: '3cac'
+    header: '504b0304'
+    max_size: 10000000
+    type: zip
+  - enabled: true
+    footer: '00000000'
+    header: '52617221'
+    max_size: 10000000
+    type: rar
+  - enabled: true
+    footer: '00000000'
+    header: 'cafebabe'
+    max_size: 1000000
+    type: java_class
+  - enabled: true
+    footer: '00000000'
+    header: '23696e636c756465'
+    max_size: 20000
+    type: cpp
+  - enabled: true
+    footer: '00000000'
+    header: 'aced0005'
+    max_size: 10000000
+    type: java_serialized
+  - enabled: true
+    footer: '000005800000'
+    header: '566947466b1a00000000'
+    max_size: 1000000
+    type: max
+  - enabled: true
+    footer: '00000000'
+    header: '50494e5320342e32300d'
+    max_size: 8000
+    type: pins
+  - enabled: true
+    footer: '00000000'
+    header: '377abcaf271c'
+    max_size: 10000000
+    type: 7z
+  - enabled: true
+    footer: '00000000'
+    header: '00010000ff01'
+    max_size: 10000000
+    type: cs_serialized
+  - enabled: true
+    footer: ''
+    header: '41414541414144'
+    max_size: 10000000
+    type: cs_serialized_b64
