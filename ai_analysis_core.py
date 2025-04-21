@@ -2,7 +2,7 @@
 模块功能: AI分析的处理工作
 作者: W啥都学
 创建日期: 2025-03-20
-修改时间：2025-04-20
+修改时间：2025-04-21
 """
 
 
@@ -27,12 +27,9 @@ def prepare_ai_analysis_data(data,analysis_selection=None):
             })
         conversational_Statements=prepare_ai_analysis_data_all(all_data_list,analysis_selection)
         return "all", conversational_Statements
-def prepare_ai_analysis_data_all(data,analysis_selection):
-    """构建分析提示"""
-    uri_s=[]
-    result = []
-    for stats in data:
-        prompt = """你是一个专业的网络安全分析师。请分析以下HTTP流量数据，识别潜在的安全威胁和异常行为。
+def build_base_prompt():
+    """构建基础的分析提示"""
+    return """你是一个专业的网络安全分析师。请分析以下HTTP流量数据，识别潜在的安全威胁和异常行为。
 
 分析要求:
 1. 重点关注SQL注入、XSS、CSRF、路径遍历、命令注入等常见Web攻击
@@ -40,7 +37,13 @@ def prepare_ai_analysis_data_all(data,analysis_selection):
 5. 使用中文回复，简明扼要
 
 流量数据:
-"""
+    """
+def prepare_ai_analysis_data_all(data,analysis_selection):
+    """构建分析提示"""
+    uri_s=[]
+    result = []
+    for stats in data:
+        prompt = build_base_prompt()
         if analysis_selection['choose_url']:
             uri_s.append(unquote(stats['uri']))
             prompt += f"- URI: {unquote(stats['uri'])}\n"
@@ -62,38 +65,11 @@ def prepare_ai_analysis_data_all(data,analysis_selection):
 
 def build_prompt_log(uri_s):
         """构建分析提示"""
-        prompt = """你是一个专业的网络安全分析师。请分析以下HTTP流量数据，识别潜在的安全威胁和异常行为。
-
-分析要求:
-1. 重点关注SQL注入、XSS、CSRF、路径遍历、命令注入等常见Web攻击
-2. 分析异常请求参数和URL结构
-5. 使用中文回复，简明扼要
-
-流量数据:
-"""
+        prompt = build_base_prompt()
         # 添加URL统计信息
         prompt += "\nURI统计:\n"
         for url in uri_s:
             prompt += f"- URI: {unquote(url)}\n"
-            # prompt += f"  访问次数: {stats['count']}\n"
-            # prompt += f"  状态码: {', '.join(f'{k}({v})' for k, v in stats['status_codes'].items())}\n"
-            # prompt += f"  方法: {', '.join(f'{k}({v})' for k, v in stats['methods'].items())}\n"
-            #
-            # if "user_agents" in stats:
-            #     prompt += f"  User-Agent: {', '.join(f'{k[:20]}...({v})' for k, v in stats['user_agents'].items())}\n"
-            #
-            # if "danger" in stats and stats["danger"]:
-            #     prompt += f"  危险标记: {', '.join(stats['danger'].keys())}\n"
-        #
-        # # 添加示例请求
-        # prompt += "\n示例请求参数:\n"
-        # for req in self.analysis_data:
-        #     prompt += f"- URL: {req['url']}\n"
-        #     if req["params"]:
-        #         prompt += "  参数:\n"
-        #         for param, value in req["params"].items():
-        #             prompt += f"    {param} = {value[:50]}{'...' if len(value) > 50 else ''}\n"
-
         prompt += "\n请分析上述流量数据，指出可疑请求和安全威胁:"
         return prompt
 
