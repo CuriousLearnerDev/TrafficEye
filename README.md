@@ -1,3 +1,9 @@
+已经打包好的（不是最新版）下载地址：
+
+GIhutb下载地址：https://github.com/CuriousLearnerDev/TrafficEye/releases
+
+夸克网盘：链接：https://pan.quark.cn/s/c0967e0b2e86 提取码：Cv49
+
 ## 最近研发进度
 
 2025-04-20：指定请求URI、请求头、请求体AI分析，优化流量分析速度、界面修改、部分问题修复
