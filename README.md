@@ -1,4 +1,4 @@
-已经打包好的（不是最新版）下载地址：
+已经打包好的（不是最新版，源代码是最新版本）下载地址：
 
 GIhutb下载地址：https://github.com/CuriousLearnerDev/TrafficEye/releases
 
