@@ -1,5 +1,7 @@
 ## 最近研发进度
 
+2025-04-20：指定请求URI、请求头、请求体AI分析，优化流量分析速度、界面修改、部分问题修复
+
 2025-04-19：完善基本AI危险识别模块
 
 2025-04-18：开始研发情报分析模块
@@ -126,18 +128,24 @@
 
 - ✅AI检测
 
-    - 目前功能不是完善可以基本使用
+    - 支持指定URI分析，分析优化
+    - 支持自动化批量分析
+    - 支持指定请求头、请求体分析
+
+仪表盘
 
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250419195307688.png)
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250421104441073.png)
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250418230811541.png)
+流量文件二进制数据提取
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250418225742865.png)
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250421104533415.png)
+
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250421104638322.png)
 
 全流量接触可以拆分成更容易阅读的格式，方便我们分析流量
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250418225820707.png)
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250421105515169.png)
 
 流量会话重放
 
@@ -153,15 +161,19 @@
 
 ![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250418230408129.png)
 
+统计分析
 
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250421111601053.png)
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250418225946143.png)
+正则验证
 
 ![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250418230649733.png)
 
 ![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250418230555774.png)
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250419195415746.png)
+AI分析
+
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250421111913245.png)
 
 ### 目前进度
 

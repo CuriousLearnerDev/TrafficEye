@@ -23,7 +23,7 @@ def load_signatures(config_path: str, target_types: Optional[List[str]] = None) 
     返回:
         签名字典列表，按 header 长度从长到短排序（匹配更精确的签名）
     """
-    with open(config_path, 'r') as f:
+    with open(config_path, 'r', encoding='utf-8') as f:
         config = yaml.safe_load(f)
 
     signatures = []
