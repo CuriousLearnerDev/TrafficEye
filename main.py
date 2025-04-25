@@ -54,7 +54,7 @@ from binary_extraction import load_signatures, extract_file
 
 version = "0.0.4"
 
-last_updated = "2025-04-20"
+last_updated = "2025-04-25"
 
 # 设置代理
 proxies = None
