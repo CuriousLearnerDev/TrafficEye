@@ -138,29 +138,3 @@ def extract_file(hex_str: str,signatures: list,output_dir: str = ".",url: Option
         "signature": None
     }
 
-
-if __name__ == "__main__":
-    import sys
-    a=['png']
-    config_path = "config.yaml"
-    hex_data = "57d97ff7692ff8fa689504e470d0a1a0a0000000d494844520000003000000030080300000060dc09b500000051504c54457d97ff7692ff8fa6ffa7b8ff555e804c505e6476be849eff819bff879fff829cff697fd58ba3ff98acff5c6a9e708af36d85e76070ae9cb0ff50566d4b4e5a494a509fb3ff92a8ffa4b7ff88a1ffaabcffce1e00160000016c49444154785ecd95d99284200c451356f7add799ffffd021607544280b7d98eaf304e8edced180f038c985c01d4e70bf18a89a2238f0fa2d4172a0f929e2ba432959079c95d6ca6075e860c587e9e1d12388846c49142054a9c368a6a9bdb9447b1410f2c3d24bd98f2e7003b9e3cd81fa1503834b4cdd6e951d52e82f8653efc159e82387f78e6626ed265e7c72a0eb77788901fa988392f04160b903559479155cd23306b50f0c10ad2e9bc012012df506d5142d1f38b89b15854ca1c344f563da81696b706368f44f1645be3584dc82de57869af2cd1763dc9d2300686ad91287db5afc40c17cc00a065a52ae84e868308360f207192852a651a8297b0840c584ad4023df20d3e65aeac09567b751f6a8444dca611cb6115fcb3980f1ca6152fb09740b3b24c7bdff515c2715ba809e0d24c73dd386b25988481daa7a2528d71f50f94098d88c0318c7e6d13fd1283543ea50af58db586beb0d40ac17bffaa368bb22feeda3788ef3813f6e9e5e7dea6d61c10000000049454e44ae42608257d97ff7692ff8fa6"  # 放十六进制数据
-    output_dir = "./output"
-
-    os.makedirs(output_dir, exist_ok=True)
-    signatures = load_signatures(config_path)
-    print(signatures)
-    #result = extract_file(hex_data, signatures, output_dir,a, url="example.com/sample.hex")
-
-    # if result["status"] == "success":
-    #     print(f"""
-    #     文件提取成功!
-    #     文件名: {result['filename']}
-    #     类型: {result['filetype']}
-    #     大小: {result['size']} 字节
-    #     来源: {result['url']}
-    #     保存路径: {result['save_path']}
-    #     偏移: {result['start']} - {result['end']}
-    #     """)
-    # else:
-    #     print("未识别到文件或提取失败。")
-

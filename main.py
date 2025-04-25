@@ -2,7 +2,7 @@
 模块功能: GUI
 作者: W啥都学
 创建日期: 2025-02-25
-修改时间：2025-04-19
+修改时间：2025-04-25
 """
 
 __author__ = "W啥都学"
@@ -18,6 +18,7 @@ import threading
 import time
 from urllib.parse import unquote
 import urllib.parse
+from urllib.parse import urlparse
 import ai_analysis_core
 import requests
 import yaml
@@ -27,17 +28,20 @@ import replay_request
 import re
 import session_utils
 from urllib.parse import urlparse
-from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QSize, QMarginsF, QRegularExpression
+from PyQt6.QtCore import Qt, QThread, pyqtSignal, QTimer, QSize, QMarginsF, QRegularExpression, QDateTime
 from PyQt6.QtWidgets import (QApplication, QMainWindow, QPushButton, QMessageBox, QTextEdit,
                              QLineEdit, QCheckBox, QFileDialog, QVBoxLayout, QHBoxLayout,
                              QGridLayout, QGroupBox, QWidget, QTabWidget, QProgressBar,
                              QLabel, QRadioButton, QSplitter, QFrame, QTableWidget,
                              QTableWidgetItem, QListWidget, QListWidgetItem, QToolBar,
                              QStatusBar, QToolButton, QMenu, QSizePolicy, QFormLayout, QProgressDialog, QComboBox,
-                             QInputDialog, QHeaderView, QAbstractItemView, QGraphicsDropShadowEffect)
+                             QInputDialog, QHeaderView, QAbstractItemView, QGraphicsDropShadowEffect, QScrollArea,
+                             QToolTip)
 from PyQt6.QtGui import (QIcon, QPixmap, QTextCursor, QTextCharFormat, QColor,
-                         QPainter, QFont, QAction, QPalette, QTextDocument, QPageLayout, QPageSize, QSyntaxHighlighter)
-from PyQt6.QtCharts import QChartView, QChart, QPieSeries, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis
+                         QPainter, QFont, QAction, QPalette, QTextDocument, QPageLayout, QPageSize, QSyntaxHighlighter,
+                         QBrush, QCursor)
+from PyQt6.QtCharts import QChartView, QChart, QPieSeries, QBarSeries, QBarSet, QBarCategoryAxis, QValueAxis, \
+    QLineSeries, QDateTimeAxis, QCategoryAxis
 
 import pyshark
 import core_processing
@@ -46,28 +50,26 @@ from collections import defaultdict
 import datetime
 import webbrowser
 from log_parsing import log_identification
-from binary_extraction import load_signatures,extract_file
+from binary_extraction import load_signatures, extract_file
 
-version = "0.0.3"
+version = "0.0.4"
 
-
-last_updated="2025-04-20"
-
-
+last_updated = "2025-04-20"
 
 # 设置代理
 proxies = None
 
 INITIALIZATION = defaultdict(lambda: {
-    'count': 0,
-    'status_codes': defaultdict(int),
-    'source_ips': defaultdict(int),
-    'methods': defaultdict(int),
-    'UA': defaultdict(int),
-    "danger": defaultdict(int),
-})
+            'count': 0,
+            'status_codes': defaultdict(int),
+            'source_ips': defaultdict(int),
+            'methods': defaultdict(int),
+            'request_time': defaultdict(int),
+            'UA': defaultdict(int),
+            "danger": defaultdict(int),
+        })
 
-FULL_DATA=[]
+FULL_DATA = []
 
 
 class AIAnalysisThread(QThread):
@@ -76,11 +78,11 @@ class AIAnalysisThread(QThread):
     update_content = pyqtSignal(str)
     finished_signal = pyqtSignal(str)
 
-    def __init__(self, model_type, analysis_data, config,traffic_type):
+    def __init__(self, model_type, analysis_data, config, traffic_type):
         super().__init__()
         self.model_type = model_type
-        self.analysis_data = analysis_data # 要分析的数据
-        self.traffic_type = traffic_type # 流量类型
+        self.analysis_data = analysis_data  # 要分析的数据
+        self.traffic_type = traffic_type  # 流量类型
         self.config = config
         self.stop_flag = False
 
@@ -96,8 +98,7 @@ class AIAnalysisThread(QThread):
         elif self.model_type == "Gemini":
             self.analyze_with_gemini()
 
-
-        #self.finished_signal.emit("分析完成")
+        # self.finished_signal.emit("分析完成")
 
     def analyze_with_local_model(self):
         """使用本地Ollama模型分析"""
@@ -130,8 +131,9 @@ class AIAnalysisThread(QThread):
             except requests.exceptions.RequestException as e:
                 self.finished_signal.emit(f"连接本地模型失败")
                 return
-                #self.result_signal.emit(f"\n连接本地模型失败: {str(e)}")
+                # self.result_signal.emit(f"\n连接本地模型失败: {str(e)}")
         self.finished_signal.emit(f"AI分析完成")
+
     def analyze_with_deepseek(self):
         """使用DeepSeek API分析"""
         api_key = self.config.get('deepseek_api_key', '')
@@ -155,8 +157,70 @@ class AIAnalysisThread(QThread):
     def stop(self):
         """停止分析"""
         self.stop_flag = True
+class FullscreenWindow(QMainWindow):
+    def __init__(self, widget, title, manager):
+        super().__init__(manager.parent)
+        self.manager = manager
+        self.widget = widget
+        self.setWindowTitle(title)
+        self.setWindowFlags(Qt.WindowType.Window)
+        # 工具栏退出按钮
+        toolbar = QToolBar("全屏工具栏", self)
+        exit_action = QAction(QIcon("ico/exit_fullscreen.png"), "退出全屏", self)
+        exit_action.triggered.connect(self.manager.exit_fullscreen)
+        toolbar.addAction(exit_action)
+        self.addToolBar(toolbar)
+        # 中央显示区域
+        central = QWidget()
+        layout = QVBoxLayout(central)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.addWidget(self.widget)
+        self.setCentralWidget(central)
 
+    def closeEvent(self, event):
+        # 确保点击×也退出全屏并回归原位
+        self.manager.exit_fullscreen()
+        super().closeEvent(event)
 
+class FullscreenManager:
+    def __init__(self, parent):
+        self.parent = parent
+        self.fullscreen_widget = None
+        self.fullscreen_window = None
+        self.original_layout = None
+
+    def enter_fullscreen(self, widget, title):
+        """进入全屏模式"""
+        if self.fullscreen_widget:
+            return
+
+        self.fullscreen_widget = widget
+        # 保存原父布局
+        self.original_layout = widget.parent().layout()
+        self.original_layout.removeWidget(widget)
+
+        # 创建并显示全屏窗口
+        self.fullscreen_window = FullscreenWindow(widget, title, self)
+        self.fullscreen_window.showMaximized()
+
+    def exit_fullscreen(self):
+        """退出全屏模式"""
+        if not self.fullscreen_widget:
+            return
+
+        # 从全屏窗口移除控件
+        self.fullscreen_window.centralWidget().layout().removeWidget(self.fullscreen_widget)
+
+        # 将控件返回原布局
+        self.original_layout.addWidget(self.fullscreen_widget)
+
+        # 关闭全屏窗口
+        self.fullscreen_window.close()
+
+        # 清理状态
+        self.fullscreen_widget = None
+        self.fullscreen_window = None
+        self.original_layout = None
 class RegexHighlighter(QSyntaxHighlighter):
     """正则表达式语法高亮"""
 
@@ -218,7 +282,7 @@ class AnalysisThread(QThread):
 
     def __init__(self, file, uri, keyword, output, request_only,
                  response_only, show_body, request_stream_id=None,
-                 sslkeylogfile=None,fileextraction=None,
+                 sslkeylogfile=None, fileextraction=None,
                  ai_analysis_starts=None):
         super().__init__()
         self.result_cache = []
@@ -229,11 +293,11 @@ class AnalysisThread(QThread):
         self.request_only = request_only
         self.response_only = response_only
         self.show_body = show_body
-        self.ai_analysis_storing_data=ai_analysis_starts # AI 分析 会记录全部的请求响应数据
-        self.sslkeylogfile = sslkeylogfile # 追加的 SSL 密钥日志文件路径
+        self.ai_analysis_storing_data = ai_analysis_starts  # AI 分析 会记录全部的请求响应数据
+        self.sslkeylogfile = sslkeylogfile  # 追加的 SSL 密钥日志文件路径
         self.request_stream_id = request_stream_id
         self.fileextraction = fileextraction
-        #if self.fileextraction:  # 判断是否文件读取
+        # if self.fileextraction:  # 判断是否文件读取
         self.result_queue = queue.Queue()
         self._send_thread = threading.Thread(target=self._emit_loop, daemon=True)
         self._send_thread.start()
@@ -251,21 +315,18 @@ class AnalysisThread(QThread):
                 continue
 
     def data_processing(self, result):
-        if self.request_stream_id is not None and result['stream_id'] == self.request_stream_id and "Request" == result[
-            'http_type']:
+        if self.request_stream_id is not None and result['stream_id'] == self.request_stream_id and "Request" == result['http_type']:
             self.result_queue.put("构建发送请求数据: \n" + output_filtering.complete_data(result) + "\n响应数据:")
             self.result_queue.put(replay_request.build_send(result, proxies))
         elif self.filter_result(result) and self.request_stream_id is None:
             self.result_queue.put(output_filtering.visual_output(result, self.show_body))
 
-
-
-    def file_extraction(self,result):
+    def file_extraction(self, result):
         """ 文件提取模块 """
         config_path = "config.yaml"
-        hex_data=result['file_data']
+        hex_data = result['file_data']
         os.makedirs(self.fileextraction['save_path'], exist_ok=True)
-        signatures = load_signatures(config_path,self.fileextraction['file_filter'])
+        signatures = load_signatures(config_path, self.fileextraction['file_filter'])
         result = extract_file(hex_data, signatures, self.fileextraction['save_path'], result['uri'])
         if result['filename']:
             self.result_signal_extract.emit(result)
@@ -280,6 +341,7 @@ class AnalysisThread(QThread):
             'status_codes': defaultdict(int),
             'source_ips': defaultdict(int),
             'methods': defaultdict(int),
+            'request_time': defaultdict(int),
             'UA': defaultdict(int),
             "danger": defaultdict(int),
         })
@@ -288,19 +350,21 @@ class AnalysisThread(QThread):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
+        process = core_processing.based_on_tshark(self.file, self.sslkeylogfile)
 
-        process = core_processing.based_on_tshark(self.file,self.sslkeylogfile)
 
         for line in process.stdout:
+
             result = core_processing.process_tshark_line(line, url_count, session_data=session_data)
-            if self.fileextraction and result['file_data']: # 判断是否文件读取
+            if self.fileextraction and result['file_data']:  # 判断是否文件读取
                 self.file_extraction(result)
                 try:
-                    self.status_label.emit("探测数据："+str(bytes.fromhex(result['file_data'])[:60])+".......")
+                    self.status_label.emit("探测数据：" + str(bytes.fromhex(result['file_data'])[:60]) + ".......")
                 except:
                     pass
-            if self.ai_analysis_storing_data and "Request"==result["Request"]: # AI分析会记录全部的请求数据
-                self.ai_analysis_storing_data["request"]['all'].append(result) # AI分析会记录全部的请求数据
+
+            if self.ai_analysis_storing_data and "Request" == result['http_type']:  # AI分析会记录全部的请求数据
+                self.ai_analysis_storing_data["request"]['all'].append(result)
 
             self.data_processing(result)
 
@@ -313,6 +377,7 @@ class AnalysisThread(QThread):
             'status_codes': defaultdict(int),
             'source_ips': defaultdict(int),
             'methods': defaultdict(int),
+            'request_time': defaultdict(int),
             'UA': defaultdict(int),
             "danger": defaultdict(int),
         })
@@ -322,9 +387,9 @@ class AnalysisThread(QThread):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
 
-        sslkeylogfile=None
-        if self.sslkeylogfile: # 如果提供了 SSL 密钥日志文件
-            sslkeylogfile={'tls.keylog_file': self.sslkeylogfile}
+        sslkeylogfile = None
+        if self.sslkeylogfile:  # 如果提供了 SSL 密钥日志文件
+            sslkeylogfile = {'tls.keylog_file': self.sslkeylogfile}
 
         cap = pyshark.FileCapture(
             self.file,
@@ -332,28 +397,26 @@ class AnalysisThread(QThread):
             override_prefs=sslkeylogfile
         )
 
-        #total_packets = len(cap)
-        #processed_packets = 0
-        if self.ai_analysis_storing_data:
-            self.ai_analysis_storing_data["request"]['all']=[]
+        # total_packets = len(cap)
+        # processed_packets = 0
+
         for index, pkt in enumerate(cap, start=0):
 
             result = core_processing.core_processing(pkt, url_count, session_data=session_data)
-            if self.fileextraction and result['file_data']: # 判断是否文件读取
+            if self.fileextraction and result['file_data']:  # 判断是否文件读取
 
                 self.file_extraction(result)
                 try:
-                    self.status_label.emit("探测数据："+str(bytes.fromhex(result['file_data'])[:60])+".......")
+                    self.status_label.emit("探测数据：" + str(bytes.fromhex(result['file_data'])[:60]) + ".......")
                 except:
                     pass
-            if self.ai_analysis_storing_data and "Request" == result['http_type']: # AI分析会记录全部的请求数据
+            if self.ai_analysis_storing_data and "Request" == result['http_type']:  # AI分析会记录全部的请求数据
                 self.ai_analysis_storing_data["request"]['all'].append(result)
 
             self.data_processing(result)
-            #processed_packets += 1
+            # processed_packets += 1
             # progress = int((processed_packets / total_packets) * 100) if total_packets > 0 else 0
             # self.progress_signal.emit(progress)
-
 
         self.last_result = url_count
 
@@ -381,6 +444,9 @@ class AnalysisThread(QThread):
         """运行流量分析"""
         self.result_signal.emit(f"开始分析，使用方式: {self.analysis_similar}")
 
+        # 初始化
+        if self.ai_analysis_storing_data:
+            self.ai_analysis_storing_data["request"]['all'] = []
 
         print(f"开始分析，使用方式: {self.analysis_similar}")
         if self.analysis_similar == "tshark":
@@ -388,21 +454,21 @@ class AnalysisThread(QThread):
         else:
             self.run_pyshark_analysis()
 
-
-        if self.ai_analysis_storing_data: # AI分析判断
+        if self.ai_analysis_storing_data:  # AI分析判断
             self.finished_signal.emit(self.ai_analysis_storing_data)
         else:
             self.finished_signal.emit(None)
 
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("TrafficEye - WEB网络流量分析工具 -研发版")
+        self.setWindowTitle("TrafficEye - WEB网络流量分析工具 -研发版  ——作者：W啥都学")
         self.setMinimumSize(1600, 900)
 
         self.ai_analysis_pending = False  # 添加状态标志
         self.ai_analysis_in_progress = False  # 添加进行中标志
-        self.run_ai=False
+        self.run_ai = False
 
         # 设置应用图标
         self.setWindowIcon(QIcon("ico/l.png"))
@@ -416,6 +482,7 @@ class MainWindow(QMainWindow):
             'status_codes': defaultdict(int),
             'source_ips': defaultdict(int),
             'methods': defaultdict(int),
+            'request_time': defaultdict(int),
             'UA': defaultdict(int),
             "danger": defaultdict(int),
         })
@@ -430,12 +497,14 @@ class MainWindow(QMainWindow):
         self.setStyleSheet(self.get_main_stylesheet())
         # 加载初始配置
         self.load_config()
+
+
+
         # 创建菜单栏
         self.create_menu_bar()
 
         # 创建工具栏
         self.create_tool_bar()
-
 
         # 创建主内容区域
         self.create_main_content()
@@ -577,6 +646,180 @@ class MainWindow(QMainWindow):
                 background: #3E3E3E;
             }
         """
+    # def get_main_stylesheet(self):
+    #     """返回主样式表"""
+    #     return """
+    #     /* 主窗口样式 */
+    #     QMainWindow {
+    #         background-color: #2D2D2D;
+    #     }
+    #
+    #     /* 全局字体和颜色 */
+    #     QWidget {
+    #         color: #E0E0E0;
+    #         font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    #         font-size: 13px;
+    #     }
+    #
+    #     /* 按钮样式 */
+    #     QPushButton {
+    #         background-color: #3A3A3A;
+    #         color: white;
+    #         border: 1px solid #4A4A4A;
+    #         border-radius: 4px;
+    #         padding: 6px 12px;
+    #         min-width: 80px;
+    #     }
+    #     QPushButton:hover {
+    #         background-color: #4A4A4A;
+    #         border: 1px solid #5A5A5A;
+    #     }
+    #     QPushButton:pressed {
+    #         background-color: #2A2A2A;
+    #     }
+    #     QPushButton:disabled {
+    #         background-color: #333333;
+    #         color: #777777;
+    #     }
+    #
+    #     /* 输入框样式 */
+    #     QLineEdit, QTextEdit {
+    #         background-color: #252525;
+    #         color: #EEE;
+    #         border: 1px solid #444;
+    #         border-radius: 4px;
+    #         padding: 5px;
+    #     }
+    #
+    #     /* 复选框样式 */
+    #     QCheckBox::indicator {
+    #         width: 16px;
+    #         height: 16px;
+    #     }
+    #     QCheckBox::indicator:unchecked {
+    #         border: 1px solid #777;
+    #         background: #333;
+    #     }
+    #     QCheckBox::indicator:checked {
+    #         border: 1px solid #0078D7;
+    #         background: #0078D7;
+    #     }
+    #
+    #     /* 单选按钮样式 */
+    #     QRadioButton::indicator {
+    #         width: 16px;
+    #         height: 16px;
+    #         border-radius: 8px;
+    #     }
+    #     QRadioButton::indicator:unchecked {
+    #         border: 1px solid #777;
+    #         background: #333;
+    #     }
+    #     QRadioButton::indicator:checked {
+    #         border: 1px solid #0078D7;
+    #         background: #0078D7;
+    #     }
+    #
+    #     /* 选项卡样式 */
+    #     QTabWidget::pane {
+    #         border: 1px solid #444;
+    #         border-radius: 4px;
+    #         background: #3A3A3A;
+    #     }
+    #     QTabBar::tab {
+    #         background: #3A3A3A;
+    #         color: #AAA;
+    #         padding: 8px 15px;
+    #         border: 1px solid #444;
+    #         border-bottom: none;
+    #         border-top-left-radius: 4px;
+    #         border-top-right-radius: 4px;
+    #     }
+    #     QTabBar::tab:selected {
+    #         background: #252525;
+    #         color: white;
+    #         border-bottom: 2px solid #0078D7;
+    #     }
+    #     QTabBar::tab:hover {
+    #         background: #4A4A4A;
+    #     }
+    #
+    #     /* 表格样式 */
+    #     QTableWidget {
+    #         background-color: #252525;
+    #         color: #EEE;
+    #         gridline-color: #444;
+    #         border: 1px solid #444;
+    #     }
+    #     QHeaderView::section {
+    #         background-color: #3A3A3A;
+    #         color: white;
+    #         padding: 5px;
+    #         border: 1px solid #444;
+    #     }
+    #     QTableWidget::item {
+    #         padding: 5px;
+    #     }
+    #     QTableWidget::item:selected {
+    #         background-color: #4A6EA9;
+    #     }
+    #
+    #     /* 菜单栏样式 */
+    #     QMenuBar {
+    #         background-color: #3A3A3A;
+    #         color: white;
+    #     }
+    #     QMenuBar::item {
+    #         padding: 5px 10px;
+    #         background: transparent;
+    #     }
+    #     QMenuBar::item:selected {
+    #         background: #5A5A5A;
+    #     }
+    #     QMenu {
+    #         background-color: #3A3A3A;
+    #         border: 1px solid #444;
+    #         color: white;
+    #     }
+    #     QMenu::item:selected {
+    #         background-color: #5A5A5A;
+    #     }
+    #
+    #     /* 工具栏样式 */
+    #     QToolBar {
+    #         background-color: #3A3A3A;
+    #         border: none;
+    #         spacing: 5px;
+    #         padding: 5px;
+    #     }
+    #     QToolButton {
+    #         padding: 5px;
+    #     }
+    #
+    #     /* 状态栏样式 */
+    #     QStatusBar {
+    #         background-color: #3A3A3A;
+    #         color: white;
+    #     }
+    #
+    #     /* 分割线样式 */
+    #     QSplitter::handle {
+    #         background: #3E3E3E;
+    #     }
+    #
+    #     /* 进度条样式 */
+    #     QProgressBar {
+    #         border: 1px solid #555;
+    #         border-radius: 3px;
+    #         text-align: center;
+    #         background: #252525;
+    #     }
+    #     QProgressBar::chunk {
+    #         background-color: #4CAF50;
+    #         width: 10px;
+    #     }
+    # """
+
     def create_menu_bar(self):
         """创建菜单栏"""
         menubar = self.menuBar()
@@ -679,6 +922,7 @@ class MainWindow(QMainWindow):
 
     def automatically_determine_the_analysis_type(self):
         """ 一键自动化 """
+
         self.status_label.setText("开始一键自动化...")
         file = self.Import_box.text()
         if not file:
@@ -687,22 +931,14 @@ class MainWindow(QMainWindow):
         # 设置AI分析标志
         if self.ai_auto_analyze_check.isChecked():
             self.start_ai_analysis()
-            if file.lower().endswith(('.pcap', '.pcapng', '.cap')):
-                self.start_http_extraction()
-
-
         else:
             if file.lower().endswith(('.log', '.txt')):
                 self.analyze_logs(log_type='auto')
             elif file.lower().endswith(('.pcap', '.pcapng', '.cap')):
                 self.start_analysis()
-
-                self.start_http_extraction()
             else:
                 QMessageBox.warning(self, "警告", "判断不出来文件类型")
                 return
-
-
 
     def toggle_toolbar(self, visible):
         """切换工具栏显示"""
@@ -960,7 +1196,7 @@ class MainWindow(QMainWindow):
             /* 设置 QListWidget 的背景色和字体 */
             QListWidget {
                 background-color: #2B2B2B;  /* 背景色 */
-                border: none;               /* 无边框 */
+                border: none;      
                 font-size: 15px;            /* 字体大小 */
                 color: #B1B1B1;             /* 字体颜色 */
                 outline: none;              /* 去除焦点框 */
@@ -973,6 +1209,7 @@ class MainWindow(QMainWindow):
                 padding: 8px 12px;         /* 内边距 */
                 margin: 6px 10px;          /* 外边距 */
                 border-radius: 10px;       /* 圆角 */
+
                 border: none;              /* 无边框 */
             }
 
@@ -984,15 +1221,16 @@ class MainWindow(QMainWindow):
 
             /* 设置选中时列表项的样式 */
             QListWidget::item:selected {
-                background: qlineargradient(             /* 选中时的渐变背景 */
+                background: qlineargradient(
                     x1:0, y1:0, x2:1, y2:0,
-                    stop:0 #00C6FF, stop:1 #0072FF
+                    stop:0 #E0F7FF, stop:1 #A0DFFF
                 );
-                color: white;                           /* 选中时字体颜色 */
-                font-weight: bold;                      /* 选中时字体加粗 */
+                color: black;                 /* 字体颜色调浅色背景下更易读 */
+                font-weight: bold;
+
             }
         """)
-        # 添加侧边栏项目
+        # # 添加侧边栏项目
         sidebar_items = [
             {"icon": "ico/dashboard.png", "text": "仪表盘", "tab": "dashboard"},
             {"icon": "ico/analysis.png", "text": "流量分析", "tab": "analysis"},
@@ -1005,16 +1243,39 @@ class MainWindow(QMainWindow):
             {"icon": "ico/report.png", "text": "报告生成", "tab": "report"},
             {"icon": "ico/settings.png", "text": "设置", "tab": "settings"}
         ]
+        # 添加侧边栏项目
+        # sidebar_items = [
+        #     {"icon": "ico/dashboard.png", "text": "", "tab": "dashboard"},
+        #     {"icon": "ico/analysis.png", "text": "", "tab": "analysis"},
+        #     {"icon": "ico/stats.png", "text": "", "tab": "stats"},
+        #     {"icon": "ico/replay.png", "text": "", "tab": "replay"},
+        #     {"icon": "ico/extract.png", "text": "", "tab": "extract"},
+        #     {"icon": "ico/logs.png", "text": "", "tab": "log"},
+        #     {"icon": "ico/intelligence.png", "text": "", "tab": "intelligence"},
+        #     {"icon": "ico/ai.png", "text": "", "tab": "ai"},
+        #     {"icon": "ico/report.png", "text": "", "tab": "report"},
+        #     {"icon": "ico/settings.png", "text": "", "tab": "settings"}
+        # ]
+
+        # for item in sidebar_items:
+        #     list_item = QListWidgetItem(QIcon(item["icon"]), "")
+        #     list_item.setData(Qt.ItemDataRole.UserRole, item["tab"])
+        #     list_item.setToolTip(item["text"])  # 悬浮提示
+        #     list_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+        #     list_item.setForeground(QColor("#B1B1B1"))
+        #     list_item.setSizeHint(QSize(70, 50))
+        #     self.sidebar.addItem(list_item)
 
         for item in sidebar_items:
             list_item = QListWidgetItem(QIcon(item["icon"]), item["text"])
             list_item.setData(Qt.ItemDataRole.UserRole, item["tab"])
             list_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             list_item.setForeground(QColor("#B1B1B1"))  # 设置每个item的字体颜色
-            list_item.setSizeHint(QSize(100, 50))  # 设置固定高度
-            #list_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
+            list_item.setSizeHint(QSize(70, 50))  # 设置固定高度
+            # list_item.setTextAlignment(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft)
             self.sidebar.addItem(list_item)
-
+        # 默认选择仪表盘项
+        self.sidebar.setCurrentRow(0)  # 设置为第一个项（仪表盘）
         self.sidebar.itemClicked.connect(self.switch_tab)
         main_layout.addWidget(self.sidebar)
 
@@ -1023,7 +1284,7 @@ class MainWindow(QMainWindow):
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(20)
         shadow.setOffset(0, 0)
-        shadow.setColor(QColor(0, 0, 0, 150))
+        shadow.setColor(QColor(0, 0, 0, 130))
         self.workspace.setGraphicsEffect(shadow)
         self.workspace.setTabsClosable(True)
         self.workspace.tabCloseRequested.connect(self.close_tab)
@@ -1072,6 +1333,32 @@ class MainWindow(QMainWindow):
 
         main_layout.addWidget(self.workspace, stretch=1)
 
+    def add_shadow_effects(self):
+        """为关键组件添加阴影效果"""
+        # 为侧边栏添加阴影
+        sidebar_shadow = QGraphicsDropShadowEffect()
+        sidebar_shadow.setBlurRadius(15)
+        sidebar_shadow.setXOffset(5)
+        sidebar_shadow.setYOffset(0)
+        sidebar_shadow.setColor(QColor(0, 0, 0, 150))
+        self.sidebar.setGraphicsEffect(sidebar_shadow)
+
+        # 为工作区添加阴影
+        workspace_shadow = QGraphicsDropShadowEffect()
+        workspace_shadow.setBlurRadius(20)
+        workspace_shadow.setXOffset(0)
+        workspace_shadow.setYOffset(0)
+        workspace_shadow.setColor(QColor(0, 0, 0, 100))
+        self.workspace.setGraphicsEffect(workspace_shadow)
+
+        # 为仪表盘卡片添加阴影
+        for card in self.stats_cards.values():
+            card_shadow = QGraphicsDropShadowEffect()
+            card_shadow.setBlurRadius(10)
+            card_shadow.setXOffset(3)
+            card_shadow.setYOffset(3)
+            card_shadow.setColor(QColor(0, 0, 0, 80))
+            card['widget'].setGraphicsEffect(card_shadow)
     def switch_tab(self, item):
         """切换标签页"""
         tab_name = item.data(Qt.ItemDataRole.UserRole)
@@ -1122,17 +1409,17 @@ class MainWindow(QMainWindow):
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(10, 10, 10, 10)  # 添加内边距，确保内容不贴边
 
-
         # 模型选择区域
         model_group = QGroupBox("AI模型选择")
-        model_group.setStyleSheet("QGroupBox { background-color: #2E2E2E; color: white; border-radius: 5px; padding: 10px; }")
+        model_group.setStyleSheet(
+            "QGroupBox { background-color: #2E2E2E; color: white; border-radius: 5px; padding: 10px; }")
         model_layout = QHBoxLayout(model_group)
 
         self.ai_model_combo = QComboBox()
         self.ai_model_combo.addItems(["本地模型 (Ollama)", "其他开发中"])
         self.ai_model_combo.setStyleSheet("color: white; background-color: #3A3A3A;")
 
-        #self.ai_model_combo.addItems(["本地模型 (Ollama)", "DeepSeek", "OpenAI", "Gemini"])
+        # self.ai_model_combo.addItems(["本地模型 (Ollama)", "DeepSeek", "OpenAI", "Gemini"])
         self.ai_model_combo.setCurrentIndex(0)
 
         model_layout.addWidget(QLabel("选择模型:"))
@@ -1152,16 +1439,14 @@ class MainWindow(QMainWindow):
                 border: 2px solid #007BFF;
             }
             QCheckBox::indicator:checked::after {
-  
+
                 color: white;
                 font-size: 14px;
                 padding-left: 2px;
                 padding-top: 2px;
             }
         """)
-        self.ai_auto_analyze_check.setChecked(True)
-
-
+        #self.ai_auto_analyze_check.setChecked(True)
 
         # 分析控制区域
         control_group = QGroupBox("分析控制")
@@ -1277,7 +1562,8 @@ class MainWindow(QMainWindow):
 
         # 结果显示区域
         result_group = QGroupBox("AI分析结果")
-        result_group.setStyleSheet("QGroupBox { background-color: #2E2E2E; color: white; border-radius: 5px; padding: 10px; }")
+        result_group.setStyleSheet(
+            "QGroupBox { background-color: #2E2E2E; color: white; border-radius: 5px; padding: 10px; }")
         result_layout = QVBoxLayout(result_group)
 
         self.ai_result_text = QTextEdit()
@@ -1297,7 +1583,8 @@ class MainWindow(QMainWindow):
 
         # 新的分析的内容区域
         analysis_group = QGroupBox("分析的内容")
-        analysis_group.setStyleSheet("QGroupBox { background-color: #2E2E2E; color: white; border-radius: 5px; padding: 10px; }")
+        analysis_group.setStyleSheet(
+            "QGroupBox { background-color: #2E2E2E; color: white; border-radius: 5px; padding: 10px; }")
         analysis_layout = QVBoxLayout(analysis_group)
 
         self.ai_analysis_result_text = QTextEdit()
@@ -1331,10 +1618,10 @@ class MainWindow(QMainWindow):
         # self.ai_tab = AIAnalysisTab(self)
         # self.workspace.addTab(self.ai_tab, QIcon("ico/ai.png"), "AI分析")
         # self.tabs["ai"] = self.ai_tab
-    def start_ai_analysis(self):
-        ai_analysis_storing_data=defaultdict(lambda: {})
-        ai_analysis_storing_data["request"]={}
 
+    def start_ai_analysis(self):
+        ai_analysis_storing_data = defaultdict(lambda: {})
+        ai_analysis_storing_data["request"] = {}
 
         # 通过字典存储复选框的状态
         self.analysis_selection = {
@@ -1347,7 +1634,6 @@ class MainWindow(QMainWindow):
         if sum(self.analysis_selection.values()) == 0:
             QMessageBox.warning(self, "警告", "至少选择一个!")
             return
-
 
         # """开始AI分析"""
         # self.run_ai= True # 启动ai分析
@@ -1366,7 +1652,6 @@ class MainWindow(QMainWindow):
             self.analyze_logs(log_type='auto', ai_analysis_starts=ai_analysis_storing_data)
         elif file.lower().endswith(('.pcap', '.pcapng', '.cap')):
             self.start_analysis(ai_analysis_starts=ai_analysis_storing_data)
-
 
         # else:
         #     QMessageBox.warning(self, "警告", "判断不出来文件类型")
@@ -1429,15 +1714,15 @@ class MainWindow(QMainWindow):
             <div style="text-align: center; font-family: 'Segoe UI', sans-serif;">
                 <h1 style="
                     font-size: 30px;
-                    color: #00e6e6;
-                    text-shadow: 0 0 6px #00e6e6, 0 0 12px #00ffff;
+                    color: #A0DFFF;
+                    text-shadow: 0 0 6px #A0DFFF, 0 0 12px #E0F7FF;
                     margin: 0;
                 ">
                     TrafficEye Web 研发版
                 </h1>
                 <p style="margin: 6px 0 2px; font-size: 16px; color: #BBBBBB;">网络流量分析工具</p>
                 <p style="margin: 0; font-size: 13px; color: #999999;">
-                    版本: {version} | 最后更新: {last_updated} | 作者：W啥都学
+                    版本: {version} | 最后更新: {last_updated}
                 </p>
             </div>
         """)
@@ -1454,10 +1739,10 @@ class MainWindow(QMainWindow):
         # 按钮样式统一美化
         button_style = """
         QPushButton {
-            border: 1px solid #444;
             border-radius: 10px;
             padding: 10px 12px;
             color: #eeeeee;
+            
         }
         QPushButton:hover {
             background-color: #3c3f41;
@@ -1469,7 +1754,6 @@ class MainWindow(QMainWindow):
         }
         """
 
-
         btn_style = """
             QPushButton {
                 padding: 12px 24px;
@@ -1478,13 +1762,12 @@ class MainWindow(QMainWindow):
                 font-weight: bold;
                 border: none;
                 min-width: 120px;
-                        
+
             }
             QPushButton:hover {
                 opacity: 0.9;
             }
         """
-
 
         btn_analyze = QPushButton(QIcon("ico/analyze.png"), "一键识别自动化分析")
         btn_analyze.clicked.connect(self.automatically_determine_the_analysis_type)
@@ -1495,8 +1778,8 @@ class MainWindow(QMainWindow):
         btn_analyze.setStyleSheet(btn_style + """
             background-color: #4CAF50;
             color: white;
+            
         """)
-
 
         btn_replay = QPushButton(QIcon("ico/replay.png"), "请求重放")
         btn_replay.clicked.connect(lambda: self.workspace.setCurrentWidget(self.tabs["replay"]))
@@ -1524,9 +1807,7 @@ class MainWindow(QMainWindow):
         quick_layout.addWidget(btn_replay)
         quick_layout.addWidget(btn_stats)
 
-        quick_layout.addWidget(btn_analyze)
-        quick_layout.addWidget(btn_replay)
-        quick_layout.addWidget(btn_stats)
+
 
         welcome_layout.addWidget(quick_actions)
         layout.addWidget(welcome_panel)
@@ -1560,6 +1841,14 @@ class MainWindow(QMainWindow):
             "status_code": {"widget": QWidget(), "value": QLabel("0")},
             "danger": {"widget": QWidget(), "value": QLabel("0")}
         }
+
+        # cards = [
+        #     {"key": "total", "icon": "ico/traffic.png", "title": "总请求数", "color": "#2196F3"},
+        #     {"key": "unique_url", "icon": "ico/url.png", "title": "唯一URL", "color": "#00BCD4"},
+        #     {"key": "source_ip", "icon": "ico/ip.png", "title": "来源IP", "color": "#FF9800"},
+        #     {"key": "status_code", "icon": "ico/status.png", "title": "状态码", "color": "#4CAF50"},
+        #     {"key": "danger", "icon": "ico/danger.png", "title": "攻击危险", "color": "#F44336"}
+        # ]
 
         cards = [
             {"key": "total", "icon": "ico/traffic.png", "title": "总请求数", "color": "#2196F3"},
@@ -1709,11 +1998,317 @@ class MainWindow(QMainWindow):
         self.recent_table.setColumnWidth(1, 120)
         self.recent_table.setColumnWidth(2, 200)
 
+
+        self.recent_table.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.recent_table.customContextMenuRequested.connect(self.show_recent_context_menu)
+
+
         recent_layout.addWidget(self.recent_table)
         layout.addWidget(recent_panel)
 
         # 加载最近活动
         self.load_recent_activity()
+
+    # 在create_dashboard_tab方法中更新卡片样式
+    # def create_dashboard_tab(self):
+    #     """创建仪表盘标签页"""
+    #     tab = QWidget()
+    #     self.workspace.addTab(tab, QIcon("ico/dashboard.png"), "仪表盘")
+    #     self.tabs["dashboard"] = tab
+    #
+    #     layout = QVBoxLayout(tab)
+    #     layout.setContentsMargins(15, 15, 15, 15)
+    #     layout.setSpacing(15)
+    #
+    #     # 欢迎面板
+    #     welcome_panel = QWidget()
+    #     welcome_panel.setObjectName("welcomePanel")
+    #     welcome_panel.setStyleSheet("""
+    #         #welcomePanel {
+    #             background: qlineargradient(x1:0, y1:0, x2:1, y2:0,
+    #                 stop:0 #1E3B70, stop:1 #2A5298);
+    #             border-radius: 8px;
+    #             padding: 20px;
+    #         }
+    #     """)
+    #     welcome_layout = QVBoxLayout(welcome_panel)
+    #
+    #     # 添加应用图标和标题
+    #     logo_title_layout = QHBoxLayout()
+    #     logo_label = QLabel()
+    #     logo_pixmap = QPixmap("ico/l.png").scaled(64, 64, Qt.AspectRatioMode.KeepAspectRatio,
+    #                                               Qt.TransformationMode.SmoothTransformation)
+    #     logo_label.setPixmap(logo_pixmap)
+    #     logo_title_layout.addWidget(logo_label)
+    #
+    #     title_layout = QVBoxLayout()
+    #     title_label = QLabel("TrafficEye Web")
+    #     title_label.setStyleSheet("""
+    #         font-size: 24px;
+    #         font-weight: bold;
+    #         color: white;
+    #     """)
+    #     subtitle_label = QLabel("网络流量分析工具")
+    #     subtitle_label.setStyleSheet("""
+    #         font-size: 14px;
+    #         color: rgba(255, 255, 255, 0.8);
+    #     """)
+    #     title_layout.addWidget(title_label)
+    #     title_layout.addWidget(subtitle_label)
+    #     logo_title_layout.addLayout(title_layout)
+    #     logo_title_layout.addStretch()
+    #
+    #     welcome_layout.addLayout(logo_title_layout)
+    #
+    #     # 版本信息
+    #     version_layout = QHBoxLayout()
+    #     version_layout.addStretch()
+    #     version_info = QLabel(f"版本: {version} | 最后更新: {last_updated} | 作者: {__author__}")
+    #     version_info.setStyleSheet("font-size: 11px; color: rgba(255, 255, 255, 0.7);")
+    #     version_layout.addWidget(version_info)
+    #     welcome_layout.addLayout(version_layout)
+    #
+    #     # 快速操作按钮区域
+    #     quick_actions = QWidget()
+    #     quick_layout = QHBoxLayout(quick_actions)
+    #     quick_layout.setContentsMargins(0, 15, 0, 0)
+    #     quick_layout.setSpacing(15)
+    #
+    #     # 按钮样式
+    #     btn_style = """
+    #         QPushButton {
+    #             padding: 10px 20px;
+    #             border-radius: 6px;
+    #             font-size: 14px;
+    #             font-weight: bold;
+    #             border: none;
+    #             min-width: 120px;
+    #         }
+    #         QPushButton:hover {
+    #             opacity: 0.9;
+    #         }
+    #     """
+    #
+    #     btn_analyze = QPushButton(QIcon("ico/analyze.png"), "一键自动化分析")
+    #     btn_analyze.clicked.connect(self.automatically_determine_the_analysis_type)
+    #     btn_analyze.setStyleSheet(btn_style + """
+    #         background-color: #4CAF50;
+    #         color: white;
+    #     """)
+    #
+    #     btn_replay = QPushButton(QIcon("ico/replay.png"), "请求重放")
+    #     btn_replay.clicked.connect(lambda: self.workspace.setCurrentWidget(self.tabs["replay"]))
+    #     btn_replay.setStyleSheet(btn_style + """
+    #         background-color: #2196F3;
+    #         color: white;
+    #     """)
+    #
+    #     btn_stats = QPushButton(QIcon("ico/stats.png"), "统计分析")
+    #     btn_stats.clicked.connect(lambda: self.workspace.setCurrentWidget(self.tabs["stats"]))
+    #     btn_stats.setStyleSheet(btn_style + """
+    #         background-color: #FF9800;
+    #         color: white;
+    #     """)
+    #
+    #     quick_layout.addWidget(btn_analyze)
+    #     quick_layout.addWidget(btn_replay)
+    #     quick_layout.addWidget(btn_stats)
+    #     welcome_layout.addWidget(quick_actions)
+    #     layout.addWidget(welcome_panel)
+    #
+    #     # 统计概览
+    #     stats_panel = QGroupBox("统计概览")
+    #     stats_panel.setStyleSheet("""
+    #         QGroupBox {
+    #             border: 1px solid #444;
+    #             border-radius: 8px;
+    #             margin-top: 10px;
+    #             padding-top: 25px;
+    #             background: #3A3A3A;
+    #         }
+    #         QGroupBox::title {
+    #             color: #AAAAAA;
+    #             subcontrol-origin: margin;
+    #             left: 15px;
+    #             padding: 0 5px;
+    #         }
+    #     """)
+    #     stats_layout = QHBoxLayout(stats_panel)
+    #     stats_layout.setContentsMargins(15, 15, 15, 15)
+    #     stats_layout.setSpacing(15)
+    #
+    #     # 添加统计卡片
+    #     self.stats_cards = {
+    #         "total": {"widget": QWidget(), "value": QLabel("0")},
+    #         "unique_url": {"widget": QWidget(), "value": QLabel("0")},
+    #         "source_ip": {"widget": QWidget(), "value": QLabel("0")},
+    #         "status_code": {"widget": QWidget(), "value": QLabel("0")},
+    #         "danger": {"widget": QWidget(), "value": QLabel("0")}
+    #     }
+    #
+    #     cards = [
+    #         {"key": "total", "icon": "ico/traffic.png", "title": "总请求数", "color": "#2196F3"},
+    #         {"key": "unique_url", "icon": "ico/url.png", "title": "唯一URL", "color": "#00BCD4"},
+    #         {"key": "source_ip", "icon": "ico/ip.png", "title": "来源IP", "color": "#FF9800"},
+    #         {"key": "status_code", "icon": "ico/status.png", "title": "状态码", "color": "#4CAF50"},
+    #         {"key": "danger", "icon": "ico/danger.png", "title": "攻击危险", "color": "#F44336"}
+    #     ]
+    #
+    #     for card in cards:
+    #         card_data = self.stats_cards[card["key"]]
+    #         card_widget = card_data["widget"]
+    #         card_widget.setStyleSheet(f"""
+    #             background-color: #252525;
+    #             border-radius: 6px;
+    #             padding: 15px;
+    #         """)
+    #         card_layout = QVBoxLayout(card_widget)
+    #         card_layout.setContentsMargins(5, 5, 5, 5)
+    #         card_layout.setSpacing(10)
+    #
+    #         # 图标和标题
+    #         top_widget = QWidget()
+    #         top_layout = QHBoxLayout(top_widget)
+    #         top_layout.setContentsMargins(0, 0, 0, 0)
+    #
+    #         icon = QLabel()
+    #         icon.setPixmap(QIcon(card["icon"]).pixmap(24, 24))
+    #
+    #         title = QLabel(card["title"])
+    #         title.setStyleSheet(f"""
+    #             color: {card['color']};
+    #             font-weight: bold;
+    #             font-size: 14px;
+    #         """)
+    #
+    #         top_layout.addWidget(icon)
+    #         top_layout.addWidget(title)
+    #         top_layout.addStretch()
+    #
+    #         # 数值
+    #         value = card_data["value"]
+    #         value.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    #         value.setStyleSheet("""
+    #             font-size: 28px;
+    #             font-weight: bold;
+    #             color: #FFFFFF;
+    #         """)
+    #
+    #         card_layout.addWidget(top_widget)
+    #         card_layout.addWidget(value)
+    #         stats_layout.addWidget(card_widget)
+    #
+    #     layout.addWidget(stats_panel)
+    #
+    #     # 最近活动
+    #     recent_panel = QGroupBox("最近操作")
+    #     recent_panel.setStyleSheet("""
+    #         QGroupBox {
+    #             border: 1px solid #444;
+    #             border-radius: 8px;
+    #             margin-top: 10px;
+    #             padding-top: 25px;
+    #             background: #3A3A3A;
+    #         }
+    #         QGroupBox::title {
+    #             color: #AAAAAA;
+    #             subcontrol-origin: margin;
+    #             left: 15px;
+    #             padding: 0 5px;
+    #         }
+    #     """)
+    #     recent_layout = QVBoxLayout(recent_panel)
+    #     recent_layout.setContentsMargins(0, 15, 0, 0)
+    #
+    #     self.recent_table = QTableWidget()
+    #     self.recent_table.setColumnCount(4)
+    #     self.recent_table.setShowGrid(False)
+    #     self.recent_table.setHorizontalHeaderLabels(["时间", "操作", "文件", "状态"])
+    #     self.recent_table.horizontalHeader().setStretchLastSection(True)
+    #     self.recent_table.verticalHeader().setVisible(False)
+    #     self.recent_table.setStyleSheet("""
+    #         QTableWidget {
+    #             border: none;
+    #             background-color: #252525;
+    #             alternate-background-color: #2D2D2D;
+    #             selection-background-color: #3A3A3A;
+    #             color: #DDDDDD;
+    #         }
+    #         QHeaderView::section {
+    #             background-color: #2D2D2D;
+    #             padding: 10px;
+    #             border: none;
+    #             font-weight: bold;
+    #             color: #AAAAAA;
+    #         }
+    #         QTableWidget::item {
+    #             padding: 8px;
+    #             border-bottom: 1px solid #3A3A3A;
+    #         }
+    #         QTableWidget::item:selected {
+    #             background-color: #3A3A3A;
+    #             color: white;
+    #         }
+    #     """)
+    #
+    #     # 设置表格列宽
+    #     self.recent_table.setColumnWidth(0, 150)
+    #     self.recent_table.setColumnWidth(1, 120)
+    #     self.recent_table.setColumnWidth(2, 200)
+    #
+    #     recent_layout.addWidget(self.recent_table)
+    #     layout.addWidget(recent_panel)
+    #
+    #     # 加载最近活动
+    #     self.load_recent_activity()
+    def show_recent_context_menu(self, position):
+        """ 删除该条记录或全部记录 """
+        index = self.recent_table.indexAt(position)
+        if not index.isValid():
+            return
+
+        menu = QMenu()
+
+        # "删除该条记录" 操作
+        delete_action = menu.addAction("删除该条记录")
+
+        # "删除所有记录" 操作
+        delete_all_action = menu.addAction("删除所有记录")
+
+        # 右键菜单展示
+        action = menu.exec(self.recent_table.viewport().mapToGlobal(position))
+
+        if action == delete_action:
+            row = index.row()
+
+            # 删除表格中的该行
+            self.recent_table.removeRow(row)
+
+            # 删除数据源中的对应记录
+            self.delete_recent_entry(row)
+
+        elif action == delete_all_action:
+            # 删除所有记录
+            row_count = self.recent_table.rowCount()
+            for row in range(row_count - 1, -1, -1):  # 从最后一行开始删除
+                self.recent_table.removeRow(row)
+                self.delete_recent_entry(row)
+
+    def delete_recent_entry(self, row_index):
+        """ 删除该条记录存储 """
+        path = "history/trafficeye_data.json"
+        if not os.path.exists(path):
+            return
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+
+        recent = data.get("recent", [])
+        if 0 <= row_index < len(recent):
+            del recent[row_index]
+            data["recent"] = recent
+            with open(path, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+
     def update_dashboard_stats(self):
         """更新仪表盘统计信息"""
         if not hasattr(self, 'stats_cards'):
@@ -1721,27 +2316,24 @@ class MainWindow(QMainWindow):
 
         total_requests = sum(stats['count'] for stats in self.url_stats.values())
         try:
-            danger=0
+            danger = 0
             for i in self.url_stats.values():
-                if not "未检测到安全威胁" in i['danger'] :
+                if not "未检测到安全威胁" in i['danger']:
 
                     if i['danger']:
                         print(i['danger'])
-                        danger+=1
+                        danger += 1
         except:
-            danger=""
+            danger = ""
 
         print(danger)
         unique_urls = len(self.url_stats)
         source_ips = set()
         status_codes = set()
 
-
         for stats in self.url_stats.values():
             source_ips.update(stats['source_ips'].keys())
             status_codes.update(stats['status_codes'].keys())
-
-
 
         self.stats_cards["total"]["value"].setText(str(total_requests))
         self.stats_cards["unique_url"]["value"].setText(str(unique_urls))
@@ -1855,7 +2447,7 @@ class MainWindow(QMainWindow):
         method_layout.setContentsMargins(8, 15, 8, 8)
 
         self.flow_pyshark_radio = QRadioButton("使用pyshark (Python库)")
-        self.flow_pyshark_radio.setChecked(True)
+
         self.flow_pyshark_radio.setStyleSheet("""
             QRadioButton::indicator {
 
@@ -1869,6 +2461,7 @@ class MainWindow(QMainWindow):
             }
         """)
         self.tshark_radio = QRadioButton("使用tshark")
+        self.tshark_radio.setChecked(True)
         self.tshark_radio.setStyleSheet("""
             QRadioButton::indicator {
 
@@ -1902,7 +2495,7 @@ class MainWindow(QMainWindow):
         self.start_analysis_button.setStyleSheet("""
             QPushButton {
                 background-color: #555;
-                color: #4CAF50;  /* 字体绿色 */
+                /* color: #4CAF50;  字体绿色 */
                 border: none;
                 border-radius: 4px;
                 padding: 8px;
@@ -1923,7 +2516,7 @@ class MainWindow(QMainWindow):
         self.stop_analysis_button.setStyleSheet("""
             QPushButton {
                 background-color: #555;
-                color: #F44336;  /* 红色字体 */
+                /*color: #F44336;   红色字体 */
                 border: none;
                 border-radius: 4px;
                 padding: 8px;
@@ -1951,7 +2544,7 @@ class MainWindow(QMainWindow):
         self.clear_button.setStyleSheet("""
             QPushButton {
                 background-color: #555;
-                color: #FFEB3B;  /* 黄色字体 */
+                /*color: #FFEB3B;   黄色字体 */
                 border: none;
                 border-radius: 4px;
                 padding: 8px;
@@ -1973,7 +2566,7 @@ class MainWindow(QMainWindow):
         self.export_button.setStyleSheet("""
             QPushButton {
                 background-color: #555;
-                color: #2196F3;  /* 蓝色字体 */
+               /* color: #2196F3;   蓝色字体 */
                 border: none;
                 border-radius: 4px;
                 padding: 8px;
@@ -2115,6 +2708,7 @@ class MainWindow(QMainWindow):
         tab_layout = QVBoxLayout(tab)
         tab_layout.setContentsMargins(5, 5, 5, 5)
         tab_layout.addWidget(main_splitter)
+
     def create_settings_tab(self):
         """创建设置标签页"""
         tab = QWidget()
@@ -2187,14 +2781,14 @@ class MainWindow(QMainWindow):
         pixmap = QPixmap("ico/qrcode_for_gh_e911bdfdbe01_344.png")  # 假设图片名为 wechat.png
         wechat_image_label.setPixmap(pixmap)
         wechat_image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # 图片居中显示
-        #wechat_image_label.setFixedSize(200, 200)  # 设置固定大小，保持二维码的统一
+        # wechat_image_label.setFixedSize(200, 200)  # 设置固定大小，保持二维码的统一
 
         # 支付二维码
         wechatzf_image_label = QLabel()
         pixmap_zf = QPixmap("ico/wxzf.jpg")  # 假设图片名为 wechat.png
         wechatzf_image_label.setPixmap(pixmap_zf)
         wechatzf_image_label.setAlignment(Qt.AlignmentFlag.AlignCenter)  # 图片居中显示
-        #wechatzf_image_label.setFixedSize(200, 200)  # 设置固定大小，保持二维码的统一
+        # wechatzf_image_label.setFixedSize(200, 200)  # 设置固定大小，保持二维码的统一
 
         # 将图片添加到左右布局
         image_layout.addWidget(wechat_image_label)
@@ -2370,7 +2964,6 @@ class MainWindow(QMainWindow):
         self.tabs["stats"] = tab
         tab.setStyleSheet("background-color: #1E1E1E;")
 
-        # 主布局
         layout = QVBoxLayout(tab)
         layout.setContentsMargins(15, 15, 15, 15)
         layout.setSpacing(15)
@@ -2381,7 +2974,6 @@ class MainWindow(QMainWindow):
         btn_layout = QHBoxLayout(control_panel)
         btn_layout.setContentsMargins(5, 5, 5, 5)
 
-        # 按钮样式
         btn_style = """
         QPushButton {
             padding: 8px 15px;
@@ -2414,20 +3006,11 @@ class MainWindow(QMainWindow):
         btn_layout.addWidget(self.refresh_stats_btn)
         btn_layout.addWidget(self.export_stats_btn)
         btn_layout.addStretch()
-
         layout.addWidget(control_panel)
 
-        # 统计信息显示区域
-        stats_splitter = QSplitter(Qt.Orientation.Vertical)
-        stats_splitter.setStyleSheet("""
-            QSplitter::handle {
-                background-color: #2D2D2D;
-                height: 5px;
-            }
-        """)
-        stats_splitter.setHandleWidth(10)
+        self.fullscreen_manager = FullscreenManager(self)
 
-        # URL统计表格
+        # URL访问统计表格
         url_group = QGroupBox("URL访问统计")
         url_group.setStyleSheet("""
             QGroupBox {
@@ -2436,7 +3019,6 @@ class MainWindow(QMainWindow):
                 margin-top: 10px;
                 padding-top: 15px;
                 font-weight: bold;
-                background-color: #252525;
                 color: #AAAAAA;
             }
             QGroupBox::title {
@@ -2445,10 +3027,11 @@ class MainWindow(QMainWindow):
                 padding: 0 5px;
             }
         """)
+
         self.url_table = QTableWidget()
         self.url_table.setColumnCount(6)
         self.url_table.setHorizontalHeaderLabels(["URL", "访问次数", "状态码", "来源IP", "方法", "UA"])
-        self.url_table.setColumnWidth(0, 400)
+        #self.url_table.setColumnWidth(0, 700)
         self.url_table.horizontalHeader().setStretchLastSection(True)
         self.url_table.setStyleSheet("""
             QTableWidget {
@@ -2475,66 +3058,373 @@ class MainWindow(QMainWindow):
             }
         """)
         self.url_table.verticalHeader().setVisible(False)
-        url_layout = QVBoxLayout(url_group)
-        url_layout.setContentsMargins(5, 15, 5, 5)
-        url_layout.addWidget(self.url_table)
-        stats_splitter.addWidget(url_group)
 
-        # 状态码统计图表
-        status_group = QGroupBox("状态码分布")
-        status_group.setStyleSheet("""
-            QGroupBox {
-                border: 1px solid #2D2D2D;
-                border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 15px;
-                font-weight: bold;
-                background-color: #252525;
-                color: #AAAAAA;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }
-        """)
+        url_header = QWidget(url_group)
+        url_header.setObjectName("qt_groupbox_titlewidget")
+        url_header_layout = QHBoxLayout(url_header)
+        url_header_layout.setContentsMargins(0, 0, 0, 0)
+        url_title = QLabel("全屏")
+        url_title.setStyleSheet("font-weight: bold; color: #AAAAAA;")
+        url_header_layout.addWidget(url_title)
+        url_header_layout.addStretch()
+
+        url_fullscreen_btn = QToolButton()
+        url_fullscreen_btn.setIcon(QIcon("ico/fullscreen.png"))
+        url_fullscreen_btn.setStyleSheet("border: none; padding: 0; background-color: transparent; color: #AAAAAA;")
+        url_fullscreen_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+        url_fullscreen_btn.clicked.connect(
+            lambda: self.fullscreen_manager.enter_fullscreen(self.url_table, "URL访问统计"))
+        url_header_layout.addWidget(url_fullscreen_btn)
+
+        url_group.setLayout(QVBoxLayout())
+        url_group.layout().addWidget(url_header)
+        url_group.layout().addWidget(self.url_table)
+        layout.addWidget(url_group)
+
+        # 图表部分 - 横向滑动
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll_area.setStyleSheet("background-color: transparent;")
+
+        charts_container = QWidget()
+        charts_container.setMinimumWidth(1600)  # 设置宽度，确保内容超出可视区域时显示滚动条
+        charts_layout = QHBoxLayout(charts_container)
+        charts_layout.setSpacing(15)
+        charts_layout.setContentsMargins(10, 10, 10, 10)
+
+        def create_chart_group(title, chart_view):
+            group = QGroupBox(title)
+            group.setStyleSheet(url_group.styleSheet())
+
+            chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+            chart_view.setStyleSheet("background-color: transparent; border: none;")
+
+            header = QWidget(group)
+            header.setObjectName("qt_groupbox_titlewidget")
+            header_layout = QHBoxLayout(header)
+            header_layout.setContentsMargins(0, 0, 0, 0)
+            header_title = QLabel("全屏")
+            header_title.setStyleSheet("font-weight: bold; color: #AAAAAA;")
+            header_layout.addWidget(header_title)
+            header_layout.addStretch()
+
+            fullscreen_btn = QToolButton()
+            fullscreen_btn.setIcon(QIcon("ico/fullscreen.png"))
+            fullscreen_btn.setStyleSheet("border: none; padding: 0;")
+            fullscreen_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            fullscreen_btn.clicked.connect(lambda: self.fullscreen_manager.enter_fullscreen(chart_view, title))
+            header_layout.addWidget(fullscreen_btn)
+
+            group.setLayout(QVBoxLayout())
+            group.layout().addWidget(header)
+            group.layout().addWidget(chart_view)
+            return group
+
         self.status_chart_view = QChartView()
-        self.status_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
-        self.status_chart_view.setStyleSheet("background-color: transparent; border: none;")
-        status_layout = QVBoxLayout(status_group)
-        status_layout.setContentsMargins(5, 15, 5, 5)
-        status_layout.addWidget(self.status_chart_view)
-        stats_splitter.addWidget(status_group)
-
-        # IP统计图表
-        ip_group = QGroupBox("来源IP统计")
-        ip_group.setStyleSheet("""
-            QGroupBox {
-                border: 1px solid #2D2D2D;
-                border-radius: 8px;
-                margin-top: 10px;
-                padding-top: 15px;
-                font-weight: bold;
-                background-color: #252525;
-                color: #AAAAAA;
-            }
-            QGroupBox::title {
-                subcontrol-origin: margin;
-                left: 10px;
-                padding: 0 5px;
-            }
-        """)
         self.ip_chart_view = QChartView()
-        self.ip_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
-        self.ip_chart_view.setStyleSheet("background-color: transparent; border: none;")
-        ip_layout = QVBoxLayout(ip_group)
-        ip_layout.setContentsMargins(5, 15, 5, 5)
-        ip_layout.addWidget(self.ip_chart_view)
-        stats_splitter.addWidget(ip_group)
 
-        # 设置分割比例
-        stats_splitter.setSizes([400, 300, 300])
-        layout.addWidget(stats_splitter)
+        self.time_chart_view = QChartView()
+        self.uri_chart_view = QChartView()
+
+        charts_layout.addWidget(create_chart_group("状态码分布", self.status_chart_view))
+        charts_layout.addWidget(create_chart_group("来源IP统计", self.ip_chart_view))
+        charts_layout.addWidget(create_chart_group("访问时间趋势", self.time_chart_view))
+        charts_layout.addWidget(create_chart_group("URI访问统计", self.uri_chart_view))
+
+        scroll_area.setWidget(charts_container)
+        layout.addWidget(scroll_area)
+
+        return tab
+
+    # def create_stats_tab(self):
+    #     """创建统计信息标签页 - 深色主题"""
+    #     tab = QWidget()
+    #     self.workspace.addTab(tab, QIcon("ico/stats.png"), "统计分析")
+    #     self.tabs["stats"] = tab
+    #     tab.setStyleSheet("background-color: #1E1E1E;")
+    #
+    #     # 主布局
+    #     layout = QVBoxLayout(tab)
+    #     layout.setContentsMargins(15, 15, 15, 15)
+    #     layout.setSpacing(15)
+    #
+    #     # 控制按钮区域
+    #     control_panel = QWidget()
+    #     control_panel.setStyleSheet("background-color: #252525; border-radius: 6px; padding: 10px;")
+    #     btn_layout = QHBoxLayout(control_panel)
+    #     btn_layout.setContentsMargins(5, 5, 5, 5)
+    #
+    #     # 按钮样式
+    #     btn_style = """
+    #     QPushButton {
+    #         padding: 8px 15px;
+    #         border-radius: 4px;
+    #         font-size: 13px;
+    #         border: none;
+    #         color: white;
+    #         background-color: #3A3A3A;
+    #     }
+    #     QPushButton:hover {
+    #         background-color: #4A4A4A;
+    #     }
+    #     QPushButton:pressed {
+    #         background-color: #2A2A2A;
+    #     }
+    #     QPushButton:disabled {
+    #         background-color: #333333;
+    #         color: #777777;
+    #     }
+    #     """
+    #
+    #     self.refresh_stats_btn = QPushButton(QIcon("ico/replay.png"), "刷新统计")
+    #     self.refresh_stats_btn.setStyleSheet(btn_style)
+    #     self.refresh_stats_btn.clicked.connect(self.update_stats_display)
+    #
+    #     self.export_stats_btn = QPushButton(QIcon("ico/export.png"), "导出统计")
+    #     self.export_stats_btn.setStyleSheet(btn_style)
+    #     self.export_stats_btn.clicked.connect(self.export_stats)
+    #
+    #     btn_layout.addWidget(self.refresh_stats_btn)
+    #     btn_layout.addWidget(self.export_stats_btn)
+    #     btn_layout.addStretch()
+    #
+    #     layout.addWidget(control_panel)
+    #
+    #     # 创建全屏管理器
+    #     self.fullscreen_manager = FullscreenManager(self)
+    #
+    #     # URL统计表格（固定）
+    #     url_group = QGroupBox("URL访问统计")
+    #     # url_group.setStyleSheet("""
+    #     #     QGroupBox {
+    #     #         border: 1px solid #2D2D2D;
+    #     #         border-radius: 8px;
+    #     #         margin-top: 10px;
+    #     #         padding-top: 15px;
+    #     #         font-weight: bold;
+    #     #         background-color: #252525;
+    #     #         color: #AAAAAA;
+    #     #     }
+    #     #     QGroupBox::title {
+    #     #         subcontrol-origin: margin;
+    #     #         left: 10px;
+    #     #         padding: 0 5px;
+    #     #     }
+    #     # """)
+    #     url_group.setStyleSheet("""
+    #         QGroupBox {
+    #             border: 1px solid #2D2D2D;
+    #             border-radius: 8px;
+    #             margin-top: 10px;
+    #             padding-top: 15px;
+    #             font-weight: bold;
+    #
+    #             color: #AAAAAA;
+    #         }
+    #         QGroupBox::title {
+    #             subcontrol-origin: margin;
+    #             left: 10px;
+    #             padding: 0 5px;
+    #         }
+    #     """)
+    #     self.url_table = QTableWidget()
+    #     self.url_table.setColumnCount(6)
+    #     self.url_table.setHorizontalHeaderLabels(["URL", "访问次数", "状态码", "来源IP", "方法", "UA"])
+    #     self.url_table.setColumnWidth(0, 400)
+    #     self.url_table.horizontalHeader().setStretchLastSection(True)
+    #     self.url_table.setStyleSheet("""
+    #         QTableWidget {
+    #             border: none;
+    #             background-color: #252525;
+    #             alternate-background-color: #2D2D2D;
+    #             selection-background-color: #3A3A3A;
+    #             color: #DDDDDD;
+    #         }
+    #         QHeaderView::section {
+    #             background-color: #2D2D2D;
+    #             padding: 10px;
+    #             border: none;
+    #             font-weight: bold;
+    #             color: #AAAAAA;
+    #         }
+    #         QTableWidget::item {
+    #             padding: 8px;
+    #             border-bottom: 1px solid #3A3A3A;
+    #         }
+    #         QTableWidget::item:selected {
+    #             background-color: #3A3A3A;
+    #             color: white;
+    #         }
+    #     """)
+    #     self.url_table.verticalHeader().setVisible(False)
+    #
+    #     # 添加全屏按钮到URL表格
+    #     url_header = url_group.findChild(QWidget, "qt_groupbox_titlewidget")
+    #     if url_header is None:
+    #         url_header = QWidget(url_group)
+    #         url_header.setObjectName("qt_groupbox_titlewidget")
+    #
+    #     url_header_layout = QHBoxLayout(url_header)
+    #     url_header_layout.setContentsMargins(0, 0, 0, 0)
+    #     url_title = QLabel("全屏")
+    #     url_title.setStyleSheet("font-weight: bold; color: #AAAAAA;")
+    #     url_header_layout.addWidget(url_title)
+    #     url_header_layout.addStretch()  # 将空间放到标题和按钮之间，使按钮靠右
+    #
+    #     url_fullscreen_btn = QToolButton()
+    #     url_fullscreen_btn.setIcon(QIcon("ico/fullscreen.png"))
+    #     url_fullscreen_btn.setStyleSheet("""
+    #         border: none;
+    #         padding: 0;
+    #         background-color: transparent;
+    #         color: #AAAAAA;
+    #     """)
+    #     url_fullscreen_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    #     url_fullscreen_btn.clicked.connect(lambda: self.fullscreen_manager.enter_fullscreen(self.url_table, "URL访问统计"))
+    #     url_header_layout.addWidget(url_fullscreen_btn)
+    #
+    #     url_group.setLayout(QVBoxLayout())
+    #     url_group.layout().addWidget(url_header)
+    #     url_group.layout().addWidget(self.url_table)
+    #     layout.addWidget(url_group)
+    #
+    #     # 图表容器 + 滚动区域
+    #     scroll_area = QScrollArea()
+    #     scroll_area.setWidgetResizable(True)
+    #     scroll_area.setStyleSheet("background-color: transparent;")
+    #
+    #     charts_container = QWidget()
+    #     charts_layout = QGridLayout(charts_container)
+    #     charts_layout.setSpacing(15)
+    #     charts_layout.setContentsMargins(10, 10, 10, 10)
+    #
+    #     # 状态码统计图
+    #     status_group = QGroupBox("状态码分布")
+    #     status_group.setStyleSheet(url_group.styleSheet())
+    #     self.status_chart_view = QChartView()
+    #     self.status_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+    #     self.status_chart_view.setStyleSheet("background-color: transparent; border: none;")
+    #
+    #     # 添加全屏按钮到状态码图表
+    #     status_header = QWidget(status_group)
+    #     status_header.setObjectName("qt_groupbox_titlewidget")
+    #     status_header_layout = QHBoxLayout(status_header)
+    #     status_header_layout.setContentsMargins(0, 0, 0, 0)
+    #     status_title = QLabel("全屏")
+    #     status_title.setStyleSheet("font-weight: bold; color: #AAAAAA;")
+    #     status_header_layout.addWidget(status_title)
+    #     status_header_layout.addStretch()
+    #
+    #     status_fullscreen_btn = QToolButton()
+    #     status_fullscreen_btn.setIcon(QIcon("ico/fullscreen.png"))
+    #     status_fullscreen_btn.setStyleSheet("border: none; padding: 0;")
+    #     status_fullscreen_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    #     status_fullscreen_btn.clicked.connect(
+    #         lambda: self.fullscreen_manager.enter_fullscreen(self.status_chart_view, "状态码分布"))
+    #     status_header_layout.addWidget(status_fullscreen_btn)
+    #
+    #     status_group.setLayout(QVBoxLayout())
+    #     status_group.layout().addWidget(status_header)
+    #     status_group.layout().addWidget(self.status_chart_view)
+    #
+    #     # 来源IP统计图
+    #     ip_group = QGroupBox("来源IP统计")
+    #     ip_group.setStyleSheet(url_group.styleSheet())
+    #     self.ip_chart_view = QChartView()
+    #     self.ip_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+    #     self.ip_chart_view.setStyleSheet("background-color: transparent; border: none;")
+    #
+    #     # 添加全屏按钮到IP图表
+    #     ip_header = QWidget(ip_group)
+    #     ip_header.setObjectName("qt_groupbox_titlewidget")
+    #     ip_header_layout = QHBoxLayout(ip_header)
+    #     ip_header_layout.setContentsMargins(0, 0, 0, 0)
+    #     ip_title = QLabel("全屏")
+    #     ip_title.setStyleSheet("font-weight: bold; color: #AAAAAA;")
+    #     ip_header_layout.addWidget(ip_title)
+    #     ip_header_layout.addStretch()
+    #
+    #     ip_fullscreen_btn = QToolButton()
+    #     ip_fullscreen_btn.setIcon(QIcon("ico/fullscreen.png"))
+    #     ip_fullscreen_btn.setStyleSheet("border: none; padding: 0;")
+    #     ip_fullscreen_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    #     ip_fullscreen_btn.clicked.connect(
+    #         lambda: self.fullscreen_manager.enter_fullscreen(self.ip_chart_view, "来源IP统计"))
+    #     ip_header_layout.addWidget(ip_fullscreen_btn)
+    #
+    #     ip_group.setLayout(QVBoxLayout())
+    #     ip_group.layout().addWidget(ip_header)
+    #     ip_group.layout().addWidget(self.ip_chart_view)
+    #
+    #     # 时间趋势图
+    #     time_group = QGroupBox("访问时间趋势")
+    #     time_group.setStyleSheet(url_group.styleSheet())
+    #     self.time_chart_view = QChartView()
+    #     self.time_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+    #     self.time_chart_view.setStyleSheet("background-color: transparent; border: none;")
+    #
+    #     # 添加全屏按钮到时间趋势图
+    #     time_header = QWidget(time_group)
+    #     time_header.setObjectName("qt_groupbox_titlewidget")
+    #     time_header_layout = QHBoxLayout(time_header)
+    #     time_header_layout.setContentsMargins(0, 0, 0, 0)
+    #     time_title = QLabel("全屏")
+    #     time_title.setStyleSheet("font-weight: bold; color: #AAAAAA;")
+    #     time_header_layout.addWidget(time_title)
+    #     time_header_layout.addStretch()
+    #
+    #     time_fullscreen_btn = QToolButton()
+    #     time_fullscreen_btn.setIcon(QIcon("ico/fullscreen.png"))
+    #     time_fullscreen_btn.setStyleSheet("border: none; padding: 0;")
+    #     time_fullscreen_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    #     time_fullscreen_btn.clicked.connect(
+    #         lambda: self.fullscreen_manager.enter_fullscreen(self.time_chart_view, "访问时间趋势"))
+    #     time_header_layout.addWidget(time_fullscreen_btn)
+    #
+    #     time_group.setLayout(QVBoxLayout())
+    #     time_group.layout().addWidget(time_header)
+    #     time_group.layout().addWidget(self.time_chart_view)
+    #
+    #     # URI统计图
+    #     uri_group = QGroupBox("URI访问统计")
+    #     uri_group.setStyleSheet(url_group.styleSheet())
+    #     self.uri_chart_view = QChartView()
+    #     self.uri_chart_view.setRenderHint(QPainter.RenderHint.Antialiasing)
+    #     self.uri_chart_view.setStyleSheet("background-color: transparent; border: none;")
+    #
+    #     # 添加全屏按钮到URI统计图
+    #     uri_header = QWidget(uri_group)
+    #     uri_header.setObjectName("qt_groupbox_titlewidget")
+    #     uri_header_layout = QHBoxLayout(uri_header)
+    #     uri_header_layout.setContentsMargins(0, 0, 0, 0)
+    #     uri_title = QLabel("全屏")
+    #     uri_title.setStyleSheet("font-weight: bold; color: #AAAAAA;")
+    #     uri_header_layout.addWidget(uri_title)
+    #     uri_header_layout.addStretch()
+    #
+    #     uri_fullscreen_btn = QToolButton()
+    #     uri_fullscreen_btn.setIcon(QIcon("ico/fullscreen.png"))
+    #     uri_fullscreen_btn.setStyleSheet("border: none; padding: 0;")
+    #     uri_fullscreen_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+    #     uri_fullscreen_btn.clicked.connect(lambda: self.fullscreen_manager.enter_fullscreen(self.uri_chart_view, "URI访问统计"))
+    #     uri_header_layout.addWidget(uri_fullscreen_btn)
+    #
+    #     uri_group.setLayout(QVBoxLayout())
+    #     uri_group.layout().addWidget(uri_header)
+    #     uri_group.layout().addWidget(self.uri_chart_view)
+    #
+    #     # 将图表加入布局
+    #     charts_layout.addWidget(status_group, 0, 0)
+    #     charts_layout.addWidget(ip_group, 0, 1)
+    #     charts_layout.addWidget(time_group, 1, 0)
+    #     charts_layout.addWidget(uri_group, 1, 1)
+    #
+    #     scroll_area.setWidget(charts_container)
+    #     layout.addWidget(scroll_area)
+    #
+    #     return tab
+
     def load_config(self):
         """加载配置文件"""
 
@@ -2805,8 +3695,9 @@ class MainWindow(QMainWindow):
                 border: 2px solid #007BFF;
             }
         """)
-        self.replay_pyshark_radio.setChecked(True)
+
         self.replay_tshark_radio = QRadioButton("tshark")
+        self.replay_tshark_radio.setChecked(True)
         self.replay_tshark_radio.setStyleSheet("""
             QRadioButton::indicator {
 
@@ -2856,7 +3747,7 @@ class MainWindow(QMainWindow):
         self.replay_button.setStyleSheet("""
             QPushButton {
                 background-color: #555;
-                color: #4CAF50;  /* 字体绿色 */
+                 /* color: #4CAF50; 字体绿色 */
                 border: none;
                 border-radius: 4px;
                 padding: 8px;
@@ -2877,7 +3768,7 @@ class MainWindow(QMainWindow):
         self.clear_replay_button.setStyleSheet("""
             QPushButton {
                 background-color: #555;
-                color: #FFEB3B;  /* 黄色字体 */
+               /* color: #FFEB3B;   黄色字体 */
                 border: none;
                 border-radius: 4px;
                 padding: 8px;
@@ -2898,7 +3789,7 @@ class MainWindow(QMainWindow):
         self.stop_replay_button.setStyleSheet("""
             QPushButton {
                 background-color: #555;
-                color: #F44336;  /* 红色字体 */
+                /*color: #F44336;   红色字体 */
                 border: none;
                 border-radius: 4px;
                 padding: 8px;
@@ -3115,14 +4006,14 @@ class MainWindow(QMainWindow):
         )
         if file_path:
             self.log_file_input.setText(file_path)
-            self.add_recent_activity("打开文件", file_path, "成功")
+            self.add_recent_activity("打开文件", file_path, "打开文件")
 
     def clear_log_analysis(self):
         """清除日志分析内容"""
-        #self.log_file_input.clear()
+        # self.log_file_input.clear()
         self.log_table.setRowCount(0)
 
-    def analyze_logs(self, log_type=None,ai_analysis_starts=None):
+    def analyze_logs(self, log_type=None, ai_analysis_starts=None):
         """分析日志文件"""
         file_path = self.Import_box.text().strip()  # 这样当两个输入栏都有内容时，会优先使用 self.log_file_input 中的内容，否则再使用 self.Import_box 的内容
         if not file_path.lower().endswith(('.log', '.txt')):
@@ -3144,6 +4035,7 @@ class MainWindow(QMainWindow):
                 'status_codes': defaultdict(int),
                 'source_ips': defaultdict(int),
                 'methods': defaultdict(int),
+                'request_time': defaultdict(int),
                 'UA': defaultdict(int),
                 "danger": defaultdict(int),
             })
@@ -3160,18 +4052,18 @@ class MainWindow(QMainWindow):
             log_identification.process_log_file(file_path, self.url_stats, log_type)
 
             if not self.url_stats:
-                self.add_recent_activity("LOG分析", file_path,f"分析可能失败结果是0，结果不匹配可能")
+                self.add_recent_activity("LOG分析", file_path, f"分析可能失败结果是0，结果不匹配可能")
                 self.status_label.setText("分析可能失败结果是0，结果不匹配可能")
                 return
             self.update_stats_display()
             self.parse_web_server_log()
             self.update_dashboard_stats()
 
-
-            if ai_analysis_starts: # AI分析记录全部的请求路径
+            if ai_analysis_starts:  # AI分析记录全部的请求路径
                 ai_analysis_starts["request"]['log'] = [uri for uri in self.url_stats]
-                self.ai_analysis_preparation(ai_analysis_starts) # 开始AI分析
-            self.add_recent_activity("LOG分析完成", file_path, f"完成一共：{sum(stats['count'] for stats in self.url_stats.values())}请求，唯一URI：{len(self.url_stats)}")
+                self.ai_analysis_preparation(ai_analysis_starts)  # 开始AI分析
+            self.add_recent_activity("LOG分析完成", file_path,
+                                     f"分析成功完成一共：{sum(stats['count'] for stats in self.url_stats.values())}请求，唯一URI：{len(self.url_stats)}")
 
             self.status_label.setText("LOG分析完成")
 
@@ -3181,7 +4073,6 @@ class MainWindow(QMainWindow):
 
     def parse_web_server_log(self):
         """解析Web服务器日志并填充表格"""
-
 
         try:
 
@@ -3326,7 +4217,7 @@ class MainWindow(QMainWindow):
         if file:
             self.Import_box.setText(file)
             self.status_label.setText(f"已选择文件: {file}")
-            self.add_recent_activity("打开文件", file, "成功")
+            self.add_recent_activity("打开文件", file, "打开文件")
 
     def load_recent_activity(self):
         """ 读取之前的操作 """
@@ -3341,8 +4232,10 @@ class MainWindow(QMainWindow):
             for col, text in enumerate(entry):
                 self.recent_table.setItem(row, col, QTableWidgetItem(text))
 
-    def add_recent_activity(self, action, filename, status):
-        """添加最近活动记录"""
+
+
+    def add_recent_activity(self, action, filename, status, status_color: QColor = None):
+        """添加最近活动记录，并可选指定状态颜色"""
         row = self.recent_table.rowCount()
         self.recent_table.insertRow(row)
 
@@ -3357,12 +4250,29 @@ class MainWindow(QMainWindow):
             file_item=file_item,
             status_item=status_item
         )
-        # 滚动到最后一行
-        self.recent_table.scrollToBottom()
+
+
+
+        # 如果调用者传了颜色，就用传入的，否则根据内容判断
+        if status_color is None:
+            status_lower = status.lower()
+            if "成功" in status_lower:
+                status_color = QColor("#86efac")  # 柔和绿色
+            elif "运行中" in status_lower or "分析中" in status_lower or "进行中" in status_lower:
+                status_color = QColor("#fde68a")  # 柔和黄色
+            elif "失败" in status_lower:
+                status_color = QColor("#fca5a5")  # 柔和红色
+            else:
+                status_color = QColor("#e5e7eb")  # 柔和灰白（避免纯白太亮）
+
+        status_item.setForeground(status_color)
+
         self.recent_table.setItem(row, 0, time_item)
         self.recent_table.setItem(row, 1, action_item)
         self.recent_table.setItem(row, 2, file_item)
         self.recent_table.setItem(row, 3, status_item)
+
+        self.recent_table.scrollToBottom()
 
     def get_proxy_settings(self):
         """获取代理设置"""
@@ -3382,12 +4292,11 @@ class MainWindow(QMainWindow):
 
     # 应用到耗时方法
 
-    def start_analysis(self,ai_analysis_starts=None):
+    def start_analysis(self, ai_analysis_starts=None):
         """开始流量分析"""
         # 清除之前的结果
         self.analysis_text_edit.clear()
-        #self.progress_bar.setValue(0)
-
+        # self.progress_bar.setValue(0)
 
         file = self.Import_box.text()
         if not file:
@@ -3406,7 +4315,9 @@ class MainWindow(QMainWindow):
         self.status_label.setText("分析进行中...")
 
         # 启动分析线程
-        self.analysis_thread = AnalysisThread(file, uri, keyword, "", request_only, response_only, show_body,sslkeylogfile=self.ssl_keylog_input.text(),ai_analysis_starts=ai_analysis_starts)
+        self.analysis_thread = AnalysisThread(file, uri, keyword, "", request_only, response_only, show_body,
+                                              sslkeylogfile=self.ssl_keylog_input.text(),
+                                              ai_analysis_starts=ai_analysis_starts)
         self.analysis_thread.analysis_similar = "pyshark" if self.flow_pyshark_radio.isChecked() else "tshark"
 
         self.analysis_thread.result_signal.connect(self.update_results)
@@ -3435,7 +4346,7 @@ class MainWindow(QMainWindow):
     def clear_results(self):
         """清除分析结果"""
         self.analysis_text_edit.clear()
-        #self.progress_bar.setValue(0)
+        # self.progress_bar.setValue(0)
         self.status_label.setText("结果已清除")
 
     def export_results(self):
@@ -3476,7 +4387,7 @@ class MainWindow(QMainWindow):
         self.analysis_text_edit.append(text)
 
     # 在AnalysisThread类的analysis_finished方法中添加自动分析逻辑
-    def analysis_finished(self,ai_analysis_storing_data=None):
+    def analysis_finished(self, ai_analysis_storing_data=None):
         """分析完成"""
         self.start_analysis_button.setEnabled(True)
         self.stop_analysis_button.setEnabled(False)
@@ -3486,16 +4397,16 @@ class MainWindow(QMainWindow):
         if hasattr(self.analysis_thread, 'last_result'):
             self.url_stats = self.analysis_thread.last_result
             self.add_recent_activity("分析完成", self.Import_box.text(),
-                                     f"完成一共：{sum(stats['count'] for stats in self.url_stats.values())}请求，唯一URI：{len(self.url_stats)}")
+                                     f"分析成功完成一共：{sum(stats['count'] for stats in self.url_stats.values())}请求，唯一URI：{len(self.url_stats)}")
             self.update_stats_display()
             self.update_dashboard_stats()
         else:
             self.add_recent_activity("分析完成", self.Import_box.text(),
-                                     f"完成一共：{sum(stats['count'] for stats in self.url_stats.values())}请求，唯一URI：{len(self.url_stats)}")
+                                     f"分析成功完成一共：{sum(stats['count'] for stats in self.url_stats.values())}请求，唯一URI：{len(self.url_stats)}")
 
         # 检查是否需要启动AI分析
         if ai_analysis_storing_data:
-            self.ai_analysis_preparation(ai_analysis_storing_data) # 开始AI分析
+            self.ai_analysis_preparation(ai_analysis_storing_data)  # 开始AI分析
         # # 自动调用AI分析
         # if hasattr(self.main_window, 'ai_tab') and self.main_window.ai_tab.should_auto_analyze():
         #     self.main_window.ai_tab.start_ai_analysis()
@@ -3506,6 +4417,10 @@ class MainWindow(QMainWindow):
         if self.url_stats is None:
             self.url_stats = {}  # 初始化为一个空字典
         self.url_table.setRowCount(len(self.url_stats))
+
+        # 启用滚动
+        self.url_table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
+        self.url_table.setHorizontalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
 
         sorted_stats = sorted(
             self.url_stats.items(),
@@ -3531,6 +4446,7 @@ class MainWindow(QMainWindow):
 
             # 格式化UA
             UA = "\n".join(f"{k}:次数{v}" for k, v in stats.get('UA', {}).items())
+            print(UA)
             self.url_table.setItem(row, 5, QTableWidgetItem(UA))
         self.url_table.setSortingEnabled(True)
 
@@ -3541,12 +4457,15 @@ class MainWindow(QMainWindow):
                 status_counts[code] += count
 
         status_series = QPieSeries()
+        status_series.hovered.connect(self.on_pie_hover)  # 连接悬停信号
         for code, count in status_counts.items():
-            status_series.append(f"HTTP {code}", count)
+            slice = status_series.append(f"HTTP {code}", count)
+            slice.setLabel(f"HTTP {code}: {count}次")
 
         status_chart = QChart()
         status_chart.addSeries(status_series)
         status_chart.setTitle("状态码分布")
+        status_chart.legend().setVisible(True)
         self.status_chart_view.setChart(status_chart)
 
         # 更新IP统计柱状图
@@ -3556,20 +4475,23 @@ class MainWindow(QMainWindow):
                 ip_counts[ip] += count
 
         ip_series = QBarSeries()
-        ip_set = QBarSet("请求次数")
-        categories = []
+        ip_series.setLabelsVisible(True)
+        ip_series.hovered.connect(self.on_ip_bar_hover)
 
-        for ip, count in sorted(ip_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
+        ip_set = QBarSet("请求次数")
+        self.ip_categories = []
+
+        for ip, count in sorted(ip_counts.items(), key=lambda x: x[1], reverse=True)[:30]:
             ip_set.append(count)
-            categories.append(ip)
+            self.ip_categories.append(ip)
 
         ip_series.append(ip_set)
         ip_chart = QChart()
         ip_chart.addSeries(ip_series)
-        ip_chart.setTitle("来源IP统计 (Top 10)")
+        ip_chart.setTitle("来源IP统计 (Top 30)")
 
         axis_x = QBarCategoryAxis()
-        axis_x.append(categories)
+        axis_x.append(self.ip_categories)
         ip_chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
         ip_series.attachAxis(axis_x)
 
@@ -3579,30 +4501,350 @@ class MainWindow(QMainWindow):
 
         self.ip_chart_view.setChart(ip_chart)
 
+        # 更新URL访问统计柱状图（Top 10）
+        url_counts = defaultdict(int)
+        for url, stats in self.url_stats.items():
+            url_counts[urlparse(url).path] += stats['count']
+
+        url_series = QBarSeries()
+        url_series.setLabelsVisible(True)
+        url_series.hovered.connect(self.on_url_bar_hover)
+
+        url_set = QBarSet("访问次数")
+        self.url_categories = []
+
+        for url, count in sorted(url_counts.items(), key=lambda x: x[1], reverse=True)[:30]:
+            url_set.append(count)
+            self.url_categories.append(url[:30] + "..." if len(url) > 30 else url)  # 缩短长URL
+
+        url_series.append(url_set)
+        url_chart = QChart()
+        url_chart.addSeries(url_series)
+        url_chart.setTitle("URL访问统计(Top 30)")
+
+        url_axis_x = QBarCategoryAxis()
+        url_axis_x.append(self.url_categories)
+        url_chart.addAxis(url_axis_x, Qt.AlignmentFlag.AlignBottom)
+        url_series.attachAxis(url_axis_x)
+
+        url_axis_y = QValueAxis()
+        url_chart.addAxis(url_axis_y, Qt.AlignmentFlag.AlignLeft)
+        url_series.attachAxis(url_axis_y)
+
+        self.uri_chart_view.setChart(url_chart)
+
+        # 更新访问时间趋势图（按分钟统计）
+        time_buckets = defaultdict(int)
+        for stats in self.url_stats.values():
+            for timestamp in stats.get('request_time', []):
+                dt = datetime.datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+                minute_precision = dt.strftime('%Y-%m-%d %H:%M:%S')
+                time_buckets[minute_precision] += 1
+
+        sorted_times = sorted(time_buckets.items())  # 按时间排序
+        print(sorted_times)
+
+        time_series = QLineSeries()
+        time_series.setPointsVisible(True)
+        time_series.hovered.connect(self.on_time_hover)
+        self.time_data = []  # 存储时间点数据用于悬停显示
+
+        for i, (time_str, count) in enumerate(sorted_times):
+            time_series.append(i, count)
+            self.time_data.append((time_str, count))
+
+        time_chart = QChart()
+        time_chart.addSeries(time_series)
+        time_chart.setTitle("访问时间趋势图（分）")
+
+        # 减少X轴标签数量，避免重叠
+        time_axis_x = QCategoryAxis()
+        step = max(1, len(sorted_times) // 10)  # 最多显示10个标签
+        for i, (time_str, _) in enumerate(sorted_times):
+            if i % step == 0 or i == len(sorted_times) - 1:
+                time_axis_x.append(time_str.split()[1][:5], i)  # 只显示时间部分
+        time_chart.addAxis(time_axis_x, Qt.AlignmentFlag.AlignBottom)
+        time_series.attachAxis(time_axis_x)
+
+        time_axis_y = QValueAxis()
+        time_chart.addAxis(time_axis_y, Qt.AlignmentFlag.AlignLeft)
+        time_series.attachAxis(time_axis_y)
+
+        self.time_chart_view.setChart(time_chart)
+
+    def on_pie_hover(self, slice, state):
+        """处理饼图悬停事件"""
+        if state:
+            # 显示更详细的信息
+            QToolTip.showText(
+                QCursor.pos(),
+                f"{slice.label()}\n占比: {slice.percentage() * 100:.1f}%",
+                self.status_chart_view
+            )
+        else:
+            QToolTip.hideText()
+
+    def on_ip_bar_hover(self, status, index, barset):
+        """处理IP柱状图悬停事件"""
+        if status:
+            ip = self.ip_categories[index]
+            value = barset.at(index)
+
+            # 获取图表位置
+            chart = self.ip_chart_view.chart()
+            pos_in_chart = self.ip_chart_view.mapFromGlobal(QCursor.pos())
+            scene_pos = self.ip_chart_view.mapToScene(pos_in_chart)
+            chart_pos = chart.mapFromScene(scene_pos)
+
+            # 计算工具提示位置
+            tooltip_pos = self.ip_chart_view.mapToGlobal(
+                self.ip_chart_view.mapFromScene(chart.mapToScene(chart_pos))
+            )
+
+            QToolTip.showText(
+                tooltip_pos,
+                f"IP: {ip}\n请求次数: {int(value)}",
+                self.ip_chart_view
+            )
+        else:
+            QToolTip.hideText()
+
+    def on_url_bar_hover(self, status, index, barset):
+        """处理URL柱状图悬停事件"""
+        if status:
+            url = self.url_categories[index]
+            value = barset.at(index)
+
+            # 获取完整URL（如果有被截断）
+            full_url = self.url_categories[index] if len(self.url_categories[index]) <= 33 else \
+                [k for k in self.url_stats.keys() if
+                 urlparse(k).path.startswith(self.url_categories[index].split("...")[0])][0]
+
+            chart = self.uri_chart_view.chart()
+            pos_in_chart = self.uri_chart_view.mapFromGlobal(QCursor.pos())
+            scene_pos = self.uri_chart_view.mapToScene(pos_in_chart)
+            chart_pos = chart.mapFromScene(scene_pos)
+
+            tooltip_pos = self.uri_chart_view.mapToGlobal(
+                self.uri_chart_view.mapFromScene(chart.mapToScene(chart_pos))
+            )
+
+            QToolTip.showText(
+                tooltip_pos,
+                f"URL: {full_url}\n访问次数: {int(value)}",
+                self.uri_chart_view
+            )
+        else:
+            QToolTip.hideText()
+
+    def on_time_hover(self, point, state):
+        """处理时间趋势图悬停事件"""
+        if state:
+            index = int(point.x())
+            if 0 <= index < len(self.time_data):
+                time_str, count = self.time_data[index]
+                QToolTip.showText(
+                    QCursor.pos(),
+                    f"时间: {time_str}\n访问量: {int(count)}",
+                    self.time_chart_view
+                )
+        else:
+            QToolTip.hideText()
+    # def update_stats_display(self):
+    #     """更新统计信息显示"""
+    #     # 更新URL表格
+    #     if self.url_stats is None:
+    #         self.url_stats = {}  # 初始化为一个空字典
+    #     self.url_table.setRowCount(len(self.url_stats))
+    #
+    #     # 启用滚动
+    #     self.url_table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
+    #     self.url_table.setHorizontalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
+    #
+    #
+    #     sorted_stats = sorted(
+    #         self.url_stats.items(),
+    #         key=lambda item: item[1]['count'],
+    #         reverse=True
+    #     )
+    #     for row, (url, stats) in enumerate(sorted_stats):
+    #         self.url_table.setItem(row, 0, QTableWidgetItem(url))
+    #         self.url_table.setItem(row, 1, QTableWidgetItem(str(stats.get('count', 0))))
+    #
+    #         # 格式化状态码
+    #         status_text = "\n".join(f"{k}:次数{v}" for k, v in stats.get('status_codes', {}).items())
+    #         self.url_table.setItem(row, 2, QTableWidgetItem(status_text))
+    #
+    #         # 格式化来源IP
+    #         ip_text = "\n".join(f"{k}:次数{v}\n" for k, v in stats.get('source_ips', {}).items())
+    #         self.url_table.setItem(row, 3, QTableWidgetItem(ip_text))
+    #         self.url_table.setColumnWidth(3, 200)
+    #
+    #         # 格式化方法
+    #         method_text = "\n".join(f"{k}:次数{v}" for k, v in stats.get('methods', {}).items())
+    #         self.url_table.setItem(row, 4, QTableWidgetItem(method_text))
+    #
+    #         # 格式化UA
+    #         UA = "\n".join(f"{k}:次数{v}" for k, v in stats.get('UA', {}).items())
+    #         print(UA)
+    #         self.url_table.setItem(row, 5, QTableWidgetItem(UA))
+    #     self.url_table.setSortingEnabled(True)
+    #
+    #     # 更新状态码饼图
+    #     status_counts = defaultdict(int)
+    #     for stats in self.url_stats.values():
+    #         for code, count in stats['status_codes'].items():
+    #             status_counts[code] += count
+    #
+    #     status_series = QPieSeries()
+    #     for code, count in status_counts.items():
+    #         status_series.append(f"HTTP {code}", count)
+    #
+    #     status_chart = QChart()
+    #     status_chart.addSeries(status_series)
+    #     status_chart.setTitle("状态码分布")
+    #     self.status_chart_view.setChart(status_chart)
+    #
+    #     # 更新IP统计柱状图
+    #     ip_counts = defaultdict(int)
+    #     for stats in self.url_stats.values():
+    #         for ip, count in stats['source_ips'].items():
+    #             ip_counts[ip] += count
+    #
+    #     ip_series = QBarSeries()
+    #     ip_series.setLabelsVisible(True)
+    #     ip_series.hovered.connect(self.on_bar_hover)
+    #
+    #
+    #     ip_set = QBarSet("请求次数")
+    #     self.categories = []
+    #
+    #     for ip, count in sorted(ip_counts.items(), key=lambda x: x[1], reverse=True):
+    #         ip_set.append(count)
+    #         self.categories.append(ip)
+    #
+    #     ip_series.append(ip_set)
+    #     ip_chart = QChart()
+    #     ip_chart.addSeries(ip_series)
+    #     ip_chart.setTitle("来源IP统计 (Top 15)")
+    #
+    #     axis_x = QBarCategoryAxis()
+    #     axis_x.append(self.categories)
+    #     ip_chart.addAxis(axis_x, Qt.AlignmentFlag.AlignBottom)
+    #     ip_series.attachAxis(axis_x)
+    #
+    #     axis_y = QValueAxis()
+    #     ip_chart.addAxis(axis_y, Qt.AlignmentFlag.AlignLeft)
+    #     ip_series.attachAxis(axis_y)
+    #
+    #     self.ip_chart_view.setChart(ip_chart)
+    #
+    #     # 更新URL访问统计柱状图（Top 10）
+    #     url_counts = defaultdict(int)
+    #     for url, stats in self.url_stats.items():
+    #         url_counts[urlparse(url).path] += stats['count']
+    #
+    #     url_series = QBarSeries()
+    #     url_set = QBarSet("访问次数")
+    #     url_categories = []
+    #
+    #     for url, count in sorted(url_counts.items(), key=lambda x: x[1], reverse=True)[:10]:
+    #         url_set.append(count)
+    #         url_categories.append(url)
+    #
+    #     url_series.append(url_set)
+    #     url_chart = QChart()
+    #     url_chart.addSeries(url_series)
+    #     url_chart.setTitle("URL访问统计 (Top 10)")
+    #
+    #     url_axis_x = QBarCategoryAxis()
+    #     url_axis_x.append(url_categories)
+    #     url_chart.addAxis(url_axis_x, Qt.AlignmentFlag.AlignBottom)
+    #     url_series.attachAxis(url_axis_x)
+    #
+    #     url_axis_y = QValueAxis()
+    #     url_chart.addAxis(url_axis_y, Qt.AlignmentFlag.AlignLeft)
+    #     url_series.attachAxis(url_axis_y)
+    #
+    #     self.uri_chart_view.setChart(url_chart)
+    #
+    #     # 更新访问时间趋势图（按小时统计）
+    #     time_buckets = defaultdict(int)
+    #     for stats in self.url_stats.values():
+    #         for timestamp in stats.get('request_time', []):  # 假设你有 'timestamps': [datetime, datetime, ...]
+    #             dt = datetime.datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
+    #             minute_precision = dt.strftime('%Y-%m-%d %H:%M:%S')
+    #             time_buckets[minute_precision] += 1
+    #
+    #     sorted_times = sorted(time_buckets.items())  # 按时间排序
+    #     print(sorted_times)
+    #
+    #     time_series = QLineSeries()
+    #     for i, (time_str, count) in enumerate(sorted_times):
+    #         time_series.append(i, count)
+    #
+    #     time_chart = QChart()
+    #     time_chart.addSeries(time_series)
+    #     time_chart.setTitle("访问时间趋势图（分）")
+    #
+    #     time_axis_x = QCategoryAxis()
+    #     for i, (time_str, _) in enumerate(sorted_times):
+    #
+    #         time_axis_x.append(time_str, i)
+    #     time_chart.addAxis(time_axis_x, Qt.AlignmentFlag.AlignBottom)
+    #     time_series.attachAxis(time_axis_x)
+    #
+    #     time_axis_y = QValueAxis()
+    #     time_chart.addAxis(time_axis_y, Qt.AlignmentFlag.AlignLeft)
+    #     time_series.attachAxis(time_axis_y)
+    #
+    #     self.time_chart_view.setChart(time_chart)
 
 
 
-    def ai_analysis_preparation(self,ai_analysis_storing_data):
+    # def on_bar_hover(self, status, index, barset):
+    #     """处理柱状图悬停事件"""
+    #     if status:  # 鼠标进入柱状图
+    #         month = self.categories[index]
+    #         value = barset.at(index)
+    #
+    #         # 获取柱状图的位置
+    #         chart = self.ip_chart_view.chart()
+    #         pos_in_chart = self.ip_chart_view.mapFromGlobal(self.cursor().pos())
+    #         scene_pos = self.ip_chart_view.mapToScene(pos_in_chart)
+    #         chart_pos = chart.mapFromScene(scene_pos)
+    #
+    #         # 计算工具提示位置
+    #         tooltip_pos = self.ip_chart_view.mapToGlobal( self.ip_chart_view.mapFromScene(chart.mapToScene(chart_pos)))
+    #
+    #         # 显示工具提示
+    #         QToolTip.showText(
+    #             tooltip_pos,
+    #             f"{month}\nIP: {int(value)}次数",
+    #             self.ip_chart_view
+    #         )
+    #     else:  # 鼠标离开柱状图
+    #         QToolTip.hideText()
+
+    def ai_analysis_preparation(self, ai_analysis_storing_data):
         """ 准备分析AI分析工作 """
         if not ai_analysis_storing_data:
             QMessageBox.warning(self, "警告", "没有可用的分析数据!")
             return
 
-
-
         # # 根据选择的模型启动分析线程
         model_type = self.ai_model_combo.currentText()
-        #print(model_type)
-
+        # print(model_type)
 
         # 准备分析数据
-        traffic_type,analysis_data = ai_analysis_core.prepare_ai_analysis_data(ai_analysis_storing_data,analysis_selection=self.analysis_selection)
+        traffic_type, analysis_data = ai_analysis_core.prepare_ai_analysis_data(ai_analysis_storing_data,
+                                                                                analysis_selection=self.analysis_selection)
 
         self.analysis_thread = AIAnalysisThread(
             model_type=model_type,
             analysis_data=analysis_data,
             config=self.config,
-            traffic_type=traffic_type # 流量类型
+            traffic_type=traffic_type  # 流量类型
         )
 
         self.analysis_thread.result_signal.connect(self.update_ai_result)
@@ -3610,7 +4852,7 @@ class MainWindow(QMainWindow):
         self.analysis_thread.finished_signal.connect(self.ai_analysis_finished)
         self.analysis_thread.start()
         self.status_label.setText("开始AI分析中请稍等...")
-        self.add_recent_activity("AI分析", self.Import_box.text(), "分析中.....")
+        self.add_recent_activity("AI分析", self.Import_box.text(), "AI分析分析中.....")
 
     def extract_url_params(self, url):
         """从URL中提取参数"""
@@ -3627,18 +4869,20 @@ class MainWindow(QMainWindow):
             return params
         except:
             return {}
+
     def update_ai_result(self, text):
         """更新AI分析结果"""
         self.ai_result_text.moveCursor(QTextCursor.MoveOperation.End)
         self.ai_result_text.insertPlainText(text)
         self.ai_result_text.moveCursor(QTextCursor.MoveOperation.End)
 
-    def update_ai_content(self,text):
+    def update_ai_content(self, text):
         """更新AI分析结果"""
         self.ai_analysis_result_text.moveCursor(QTextCursor.MoveOperation.End)
         self.ai_analysis_result_text.insertPlainText(text)
         self.ai_analysis_result_text.moveCursor(QTextCursor.MoveOperation.End)
-    def ai_analysis_finished(self,ErrorResponse=""):
+
+    def ai_analysis_finished(self, ErrorResponse=""):
         """AI分析完成"""
         self.ai_analyze_btn.setEnabled(True)
         self.ai_stop_btn.setEnabled(False)
@@ -3665,6 +4909,7 @@ class MainWindow(QMainWindow):
         if path:
             self.save_path_input.setText(path)
             self.add_recent_activity("设置保存路径", path, "成功")
+
     def extraction_finished(self):
         """提取完成"""
         self.extract_btn.setEnabled(True)
@@ -3682,6 +4927,7 @@ class MainWindow(QMainWindow):
         self.stop_extract_btn.setEnabled(False)
         self.status_label.setText("提取已停止")
         self.add_recent_activity("停止提取", self.Import_box.text(), "已停止")
+
     def clear_extract_results(self):
         """清除提取结果"""
         self.file_table.setRowCount(0)
@@ -3801,7 +5047,6 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "错误", f"导出失败: {str(e)}")
             self.add_recent_activity("导出文件列表", file_path, f"失败: {str(e)}")
 
-
     def start_http_extraction(self):
         """开始提取HTTP文件"""
         file = self.Import_box.text()
@@ -3816,12 +5061,12 @@ class MainWindow(QMainWindow):
 
         # 获取选中的文件类型
         selected_index = self.file_filter_combo.currentIndex()
-        file_filter=["java_class","java_serialized"]
+        file_filter = ["java_class", "java_serialized"]
 
         # 如果不是"所有文件类型"，则获取具体的文件类型
         if selected_index > 0:
             selected_text = self.file_filter_combo.currentText()
-            if selected_text.split()[0]=="所有文件类型":
+            if selected_text.split()[0] == "所有文件类型":
                 file_filter = None
             else:
                 # 从"类型 文件"格式中提取类型
@@ -3837,9 +5082,9 @@ class MainWindow(QMainWindow):
         # 获取SSL密钥日志文件路径（如果有）
         ssl_keylog = self.ssl_keylog_input.text() if self.ssl_keylog_input.text() else None
 
-        fileextraction={
-            "file_filter":file_filter, # 是否是要是选择的文件类型
-            "save_path":save_path # 提取要保存的文件
+        fileextraction = {
+            "file_filter": file_filter,  # 是否是要是选择的文件类型
+            "save_path": save_path  # 提取要保存的文件
         }
 
         # 创建并启动提取线程
@@ -3852,7 +5097,7 @@ class MainWindow(QMainWindow):
             response_only=False,
             show_body=True,
             sslkeylogfile=ssl_keylog,
-            fileextraction = fileextraction
+            fileextraction=fileextraction
         )
         self.extract_thread.analysis_similar = "pyshark" if self.extract_pyshark_radio.isChecked() else "tshark"
         self.extract_thread.result_signal_extract.connect(self.add_extracted_file)
@@ -3894,6 +5139,7 @@ class MainWindow(QMainWindow):
         if file:
             self.ssl_keylog_input.setText(file)
             self.add_recent_activity("选择SSL密钥文件", file, "成功")
+
     #
     # def create_extract_tab(self):
     #     """创建HTTP文件提取选项卡"""
@@ -4092,8 +5338,9 @@ class MainWindow(QMainWindow):
                 border: 2px solid #007BFF;
             }
         """)
-        self.extract_pyshark_radio.setChecked(True)
+
         self.tshark_radio = QRadioButton("tshark")
+        self.tshark_radio.setChecked(True)
         self.tshark_radio.setStyleSheet("""
             QRadioButton::indicator {
 
@@ -4167,7 +5414,7 @@ class MainWindow(QMainWindow):
         # 设置字体和背景色，避免显示问题
         self.file_filter_combo.setStyleSheet("""
             padding: 5px;
-            background-color: white;
+            background-color: #3A3A3A;
             color: black;
             font-size: 14px;
             font-family: Arial, sans-serif;
@@ -4281,7 +5528,7 @@ class MainWindow(QMainWindow):
         self.file_table.setStyleSheet("""
 
             QHeaderView::section {
-   
+
                 padding: 5px;
                 border: none;
             }
@@ -4365,6 +5612,7 @@ class MainWindow(QMainWindow):
         action_layout.addStretch()
 
         main_layout.addWidget(action_frame)
+
     def export_stats(self):
         """导出统计信息"""
         file_name, _ = QFileDialog.getSaveFileName(
@@ -5043,6 +6291,7 @@ class MainWindow(QMainWindow):
             }
         </style>
         """
+
     def export_report_pdf(self):
         """导出报告为PDF"""
         if not self.report_preview.toPlainText():
@@ -5201,7 +6450,6 @@ class MainWindow(QMainWindow):
         self.status_label.setText("操作完成")
         self.add_recent_activity("请求操作", self.Import_box.text(), "完成")
 
-
     def cleanup_resources(self):
         """ 清理图表资源 """
         if hasattr(self, '_status_chart'):
@@ -5215,7 +6463,6 @@ class MainWindow(QMainWindow):
         # 清理模型数据
         if hasattr(self, 'url_table_model'):
             self.url_table_model.deleteLater()
-
 
     def closeEvent(self, event):
         """窗口关闭事件"""

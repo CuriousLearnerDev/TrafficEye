@@ -17,7 +17,7 @@ log_formats:
 parsers:
   iis_log: '(?P<date>\d{4}-\d{2}-\d{2})\s+(?P<time>\d{2}:\d{2}:\d{2})\s+(?P<s_ip>\S+)\s+(?P<method>[A-Z]+)\s+(?P<path>\S+)\s+(?P<query>\S+)\s+(?P<port>\d+)\s+(?P<username>\S+)\s+(?P<client_ip>[0-9a-fA-F:.]+)\s+(?P<user_agent>.+?)\s+(?P<status_code>\d{3})\s+\d+\s+\d+\s+(?P<time_taken>\d+)'
   haproxy_access: '\S+\s+\S+\s+\S+\s+\[\d+\]:\s+(?P<ip>[0-9a-fA-F:.]+):\d+\s+\[(?P<timestamp>[^\]]+)\]\s+(?P<frontend>\S+)\s+(?P<backend>\S+/\S+)\s+\d+/\d+/\d+/\d+/\d+\s+(?P<status_code>\d{3})\s+(?P<size>\d+)\s+[^"]*"(?P<method>[A-Z]+)\s+(?P<path>[^ ]+)\s+HTTP/[^"]+"'
-  access_log: '(?P<ip>[0-9a-fA-F:.]+)\s+[^ ]+\s+[^ ]+\s+\[(?P<timestamp>[^\]]+)\]\s+"(?P<method>[A-Z]+)\s+(?P<path>[^ ]+)\s+HTTP/[^"]+"\s+(?P<status_code>\d{3})\s+(?P<size>\d+|-)\s+"(?P<referer>[^"]*)"\s+"(?P<user_agent>[^"]*)"'
+  access_log: '(?P<ip>[0-9a-fA-F:.]+)\s+[^ ]+\s+[^ ]+\s+\[(?P<time>[^\]]+)\]\s+"(?P<method>[A-Z]+)\s+(?P<path>[^ ]+)\s+HTTP/[^"]+"\s+(?P<status_code>\d{3})\s+(?P<size>\d+|-)\s+"(?P<referer>[^"]*)"\s+"(?P<user_agent>[^"]*)"'
 
 
 # 安全检测
@@ -392,3 +392,6 @@ signatures:
     header: '41414541414144'
     max_size: 10000000
     type: cs_serialized_b64
+
+
+

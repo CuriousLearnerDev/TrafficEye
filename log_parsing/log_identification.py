@@ -6,13 +6,15 @@
 """
 
 
+
 import json
 import module
+from examine import SecurityScanner
 import re
 from collections import defaultdict
 import yaml
-
-
+from datetime import datetime
+from dateutil.parser import parse
 # # 几种常见日志格式正则
 # LOG_FORMATS = {
 #     'f5_healthcheck': re.compile(r'^\d+\.\d+\.\d+\.\d+ - - \[.*\] "GET /f5[_\w]+ HTTP/1\.1" \d+ \d+'),
@@ -45,7 +47,7 @@ import yaml
 #     r'"(?P<referer>[^"]*)" '
 #     r'"(?P<user_agent>[^"]*)"'
 # )
-
+scanner = SecurityScanner()
 
 def load_config(config_path='config.yaml'):
     """加载 YAML 配置文件，并编译正则表达式"""
@@ -106,6 +108,10 @@ def parse_iis_web_log(log_line, url_count):
         url_count[path]['status_codes'][status_code] += 1
         url_count[path]["UA"][user_agent] += 1
 
+        results = scanner.scan_url(path)
+        results = scanner.pretty_print_results(results)
+        url_count[path]["danger"][results] += 1
+
 
 def parse_haproxy_access_web_log(log_line, url_count):
     """解析 haproxy_access 格式的 Web 日志并更新统计"""
@@ -129,7 +135,9 @@ def parse_haproxy_access_web_log(log_line, url_count):
         url_count[path]["sizes"][size] += 1
         url_count[path]["frontend"][frontend] += 1
         url_count[path]["backend"][backend] += 1
-
+        results = scanner.scan_url(path)
+        results = scanner.pretty_print_results(results)
+        url_count[path]["danger"][results] += 1
 
 def parse_json_web_log(log_line, url_count):
     """解析 JSON 格式的 Web 日志并更新统计"""
@@ -146,7 +154,9 @@ def parse_json_web_log(log_line, url_count):
     url_count[path]["methods"][method] += 1
     url_count[path]["UA"][user_agent] += 1
     url_count[path]["status_codes"][status_code] += 1
-
+    results = scanner.scan_url(path)
+    results = scanner.pretty_print_results(results)
+    url_count[path]["danger"][results] += 1
 
 def parse_access_line(log_line, url_count, log_type):
     """解析 apache/nginx/tomcat 访问日志"""
@@ -154,6 +164,13 @@ def parse_access_line(log_line, url_count, log_type):
     if match:
         groups = match.groupdict()
         ip = groups['ip']
+        time = groups['time']
+        # 直接解析（自动识别格式）
+        dt = parse(time, fuzzy=True)
+        # 转换为需要的字符串格式
+        formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
+
+
         path = groups['path']
         method = groups['method']
         status_code = groups['status_code']
@@ -164,6 +181,19 @@ def parse_access_line(log_line, url_count, log_type):
         url_count[path]['methods'][method] += 1
         url_count[path]["UA"][user_agent] += 1
         url_count[path]["status_codes"][status_code] += 1
+
+        # 如果 'request_time' 是一个列表，直接追加时间
+        if isinstance(url_count[path]['request_time'], list):
+            url_count[path]['request_time'].append(formatted_time)
+        else:
+            # 如果 'request_time' 不是列表，则初始化为列表并添加时间
+            url_count[path]['request_time'] = [formatted_time]
+        #
+        # url_count[path]["request_time"] += 1
+
+        results = scanner.scan_url(path)
+        results = scanner.pretty_print_results(results)
+        url_count[path]["danger"][results] += 1
 
 
 def guess_log_format(file_path, max_lines=10):
@@ -194,3 +224,4 @@ def guess_log_format(file_path, max_lines=10):
     if best_match[1] / len(lines) >= 0.5:
         return best_match[0]
     return 'unknown'
+

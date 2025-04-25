@@ -1,10 +1,16 @@
-已经打包好的（不是最新版）下载地址：
+已经打包好的下载地址：
 
 GIhutb下载地址：https://github.com/CuriousLearnerDev/TrafficEye/releases
 
 夸克网盘：链接：https://pan.quark.cn/s/c0967e0b2e86 提取码：Cv49
 
 ## 最近研发进度
+
+2025-04-24：性能优化
+
+2025-04-23：统计分析可以点击全屏
+
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425103953985.png)
 
 2025-04-20：指定请求URI、请求头、请求体AI分析，优化流量分析速度、界面修改、部分问题修复
 
@@ -141,17 +147,19 @@ GIhutb下载地址：https://github.com/CuriousLearnerDev/TrafficEye/releases
 仪表盘
 
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250421104441073.png)
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425105214191.png)
 
 流量文件二进制数据提取
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250421104533415.png)
+![image-20250425105119351](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425105119351.png)
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250421104638322.png)
+LOG web文件分析
+
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425105011845.png)
 
 全流量接触可以拆分成更容易阅读的格式，方便我们分析流量
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250421105515169.png)
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425104941414.png)
 
 流量会话重放
 
@@ -161,25 +169,29 @@ GIhutb下载地址：https://github.com/CuriousLearnerDev/TrafficEye/releases
 
 例如：哥斯拉会话id如下
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250418230311411.png)
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425104909500.png)
 
 我们就可以输入id发送这个请求
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250418230408129.png)
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425104823648.png)
 
 统计分析
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250421111601053.png)
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425103953985.png)
+
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425105307648.png)
+
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425105343607.png)
 
 正则验证
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250418230649733.png)
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425104659045.png)
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250418230555774.png)
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425104558713.png)
 
 AI分析
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250421111913245.png)
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425104459206.png)
 
 ### 目前进度
 

@@ -50,8 +50,9 @@ def prepare_ai_analysis_data_all(data,analysis_selection):
         if analysis_selection['choose_headers']:
             headers_str = "\n".join([f"{key}: {value}" for key, value in stats['headers'].items()])
             prompt += f"- 请求头: {headers_str}\n"
+
         if stats["request_body"] and analysis_selection['choose_Body']:
-            prompt += f"- 请求数据: \n{bytes.fromhex(stats["request_body"]).decode('utf-8', errors='replace')}\n"
+            prompt += f"- 请求数据: \n{bytes.fromhex(stats['request_body']).decode('utf-8', errors='replace')}\n"
         prompt += "\n请分析上述流量数据，指出可疑请求和安全威胁:"
         result.append(prompt)
 

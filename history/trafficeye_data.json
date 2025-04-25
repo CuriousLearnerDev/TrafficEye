@@ -1,34 +1,3 @@
 {
-  "recent": [
-    [
-      "2025-04-21 10:40:38",
-      "打开文件",
-      "/media/zss/软件盘/win和linux共享/笔记/代码/python/流量分析工具/github项目/log_parsing/www.zssnp.top-access.log",
-      "成功"
-    ],
-    [
-      "2025-04-21 10:40:39",
-      "开始分析LOG日志",
-      "/media/zss/软件盘/win和linux共享/笔记/代码/python/流量分析工具/github项目/log_parsing/www.zssnp.top-access.log",
-      "运行中"
-    ],
-    [
-      "2025-04-21 10:40:39",
-      "AI分析",
-      "/media/zss/软件盘/win和linux共享/笔记/代码/python/流量分析工具/github项目/log_parsing/www.zssnp.top-access.log",
-      "分析中....."
-    ],
-    [
-      "2025-04-21 10:40:39",
-      "LOG分析完成",
-      "/media/zss/软件盘/win和linux共享/笔记/代码/python/流量分析工具/github项目/log_parsing/www.zssnp.top-access.log",
-      "完成一共：989请求，唯一URI：346"
-    ],
-    [
-      "2025-04-21 10:40:39",
-      "AI分析",
-      "/media/zss/软件盘/win和linux共享/笔记/代码/python/流量分析工具/github项目/log_parsing/www.zssnp.top-access.log",
-      "连接本地模型失败"
-    ]
-  ]
+
 }
