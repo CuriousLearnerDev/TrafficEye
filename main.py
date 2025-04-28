@@ -51,9 +51,9 @@ import webbrowser
 from log_parsing import log_identification
 from binary_extraction import load_signatures, extract_file
 
-version = "0.0.4"
+version = "0.0.5"
 
-last_updated = "2025-04-20"
+last_updated = "2025-04-28"
 
 # 设置代理
 proxies = None
