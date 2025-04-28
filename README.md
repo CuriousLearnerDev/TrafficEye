@@ -1,10 +1,18 @@
-已经打包好的下载地址：
 
-GIhutb下载地址：https://github.com/CuriousLearnerDev/TrafficEye/releases
+📥 已经打包好的下载地址（源码是最新版本打包文件不一定是！）：
 
-夸克网盘：链接：https://pan.quark.cn/s/c0967e0b2e86 提取码：Cv49
+GIhutb下载地址：👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
 
-## 最近研发进度
+夸克网盘（提取码：BzHb）：👉 https://pan.quark.cn/s/3e125e4c13b7
+
+
+### 📅 最近研发进度
+
+2025-04-28：全流量大文件分析内存优化，输出超过20万行时自动写入硬盘，降低内存占用
+
+2025-04-28：性能优化，WEB日志log分析模块已经测试处理2GB文件及400万条数据
+
+2025-04-26：默认AI识别、流量包二进制文件识别、不勾选，提升整体速度
 
 2025-04-24：性能优化
 
@@ -44,15 +52,16 @@ GIhutb下载地址：https://github.com/CuriousLearnerDev/TrafficEye/releases
 
 等等等....
 
-## 工具介绍
+### 🧪 工具介绍
 
 该工具的主要目标是对护网蓝队、流量分析的网络流量进行详细分析，识别潜在的安全威胁，特别是针对Web应用的攻击（如SQL注入、XSS、Webshell等），它通过模块化设计让用户能够根据需要选择和定制不同的功能，适用于安全研究人员、渗透测试人员和网络管理员等专业人士
 
-## 工具架构
+
+## 🧱 工具架构
 
 ![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/2025-04-04_22-37.png)
 
-## 工具现有功能
+## 🚀 工具现有功能
 
 - ✅ `pyshark `
 
@@ -62,90 +71,91 @@ GIhutb下载地址：https://github.com/CuriousLearnerDev/TrafficEye/releases
 
 - ✅可以使用sslkeys.log对HTTPS的数据解密
 
-- ✅全流量文件.pcapng、
+- 🎯 全流量文件.pcapng、
 
-  - 支持输出Burp Suite的http数据
-  - 支持输出POST数据部分字节流格式
-  - 支持输出POST数据部原始16进制数据
-  - 支持过滤输出uri、过滤请求和响应
+  - ✅ 支持输出Burp Suite的http数据
+  - ✅ 支持输出POST数据部分字节流格式
+  - ✅ 支持输出POST数据部原始16进制数据
+  - ✅ 支持过滤输出uri、过滤请求和响应
 
-- ✅LOG文件分析
+- 📄 LOG文件分析
 
-    - 支持Apache
-    - 支持Nginx
-    - 支持JSON
-    - 支持F5
-    - 支持HAProxy
-    - 支持Tomcat
-    - 支持IIS
+    - ✅ 支持Apache
+    - ✅ 支持Nginx
+    - ✅ 支持JSON
+    - ✅ 支持F5
+    - ✅ 支持HAProxy
+    - ✅ 支持Tomcat
+    - ✅ 支持IIS
 
-- ✅数据重放
+- 🔁 数据重放
 
-    - 原封不动重放请求
-    - 发送完整二进制请求数据
+    - ✅ 原封不动重放请求
+    - ✅ 发送完整二进制请求数据
     - **按会话发送请求：** 请求会按照建立的连接会话顺序发送，例如，在哥斯拉工具中，测试 Webshell 时会自动发送三次请求，这三次请求构成一个会话，输入会话 ID 后可以重放这三次请求，完全复现会话过程
 
-- ✅二进制文件提取支持：
+- 📦 二进制文件提取支持：
 
-    \- 支持：JAVA 序列化二进制数据
+    \- ✅ 支持：JAVA 序列化二进制数据
 
-    \- 支持：C# 序列化数据
+    \- ✅ 支持：C# 序列化数据
 
-    \- 支持：C# Base64 序列化数据
+    \- ✅ 支持：C# Base64 序列化数据
 
-    \- 支持：JAVA 字节码
+    \- ✅ 支持：JAVA 字节码
 
-    \- 支持：ZIP 文件
+    \- ✅ 支持：ZIP 文件
 
-    \- 支持：7z 文件
+    \- ✅ 支持：7z 文件
 
-    \- 支持：图片文件 (JPEG, PNG, GIF, BMP, TIFF等)
+    \- ✅ 支持：图片文件 (JPEG, PNG, GIF, BMP, TIFF等)
 
-    \- 支持：音频文件 (MP3, WAV, FLAC等)
+    \- ✅ 支持：音频文件 (MP3, WAV, FLAC等)
 
-    \- 支持：视频文件 (MP4, AVI, MOV, MKV等)
+    \- ✅ 支持：视频文件 (MP4, AVI, MOV, MKV等)
 
-    \- 支持：PDF 文件
+    \- ✅ 支持：PDF 文件
 
-    \- 支持：文档文件 (Word, Excel, PowerPoint, PDF等)
+    \- ✅ 支持：文档文件 (Word, Excel, PowerPoint, PDF等)
 
-    \- 支持：压缩包文件 (RAR, TAR, GZ, ARJ等)
+    \- ✅ 支持：压缩包文件 (RAR, TAR, GZ, ARJ等)
 
-    \- 支持：邮件文件 (MBOX, PST, DBX, EML等)
+    \- ✅ 支持：邮件文件 (MBOX, PST, DBX, EML等)
 
-    \- 支持：数据库文件 (SQLite, MySQL, MongoDB等)
+    \- ✅ 支持：数据库文件 (SQLite, MySQL, MongoDB等)
 
-    \- 支持：脚本和代码文件 (Python, JavaScript, PHP, Ruby, Java等)
+    \- ✅ 支持：脚本和代码文件 (Python, JavaScript, PHP, Ruby, Java等)
 
-    \- 支持：二进制文件签名检测（如：特定软件或硬件生成的二进制格式）
+    \- ✅ 支持：二进制文件签名检测（如：特定软件或硬件生成的二进制格式）
 
-- ✅统计
+- 📊 统计
 
-    - 支持访问地址整理访问次数
-    - IP地址归属地
-    - 原始IP
-    - 使用的方法
-    - 访问次数
+    - ✅ 支持访问地址整理访问次数
+    - ✅ IP地址归属地
+    - ✅ 原始IP
+    - ✅ 使用的方法
+    - ✅ 访问次数
 
-- ✅安全检测
+- 🧰 安全检测
 
-    - 信息泄露/目录遍历
-    - 敏感文件泄露
-    - 目录遍历
-    - 远程文件包含
-    - 本地文件包含
-    - 远程代码执行
-    - SQL注入攻击
-    - 跨站脚本攻击（XSS）
+    - ✅ 信息泄露/目录遍历
+    - ✅ 敏感文件泄露
+    - ✅ 目录遍历
+    - ✅ 远程文件包含
+    - ✅ 本地文件包含
+    - ✅ 远程代码执行
+    - ✅ SQL注入攻击
+    - ✅ 跨站脚本攻击（XSS）
 
-- ✅AI检测
+- 🧠 AI检测
 
-    - 支持指定URI分析，分析优化
-    - 支持自动化批量分析
-    - 支持指定请求头、请求体分析
+    - ✅ 支持指定URI分析，分析优化
+    - ✅ 支持自动化批量分析
+    - ✅ 支持指定请求头、请求体分析
 
-仪表盘
+### 📸 界面预览
 
+仪表盘统计界面
 
 ![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250425105214191.png)
 
@@ -269,5 +279,17 @@ AI分析
 
 #### 📄 `config.yaml`
 
-- 全局配置文件、解析器正则、检测规则及其他运行参数
+
+
+### 🙏 非常感谢下面的团队和信息安全研究人员建议和意见
+- 知攻善防实验室
+- 雪娃娃
+- 糖糖
+- niuᴗu
+
+### 🧠 未来计划（规划中）
+- ✅ 日志告警联动系统
+- ✅ 威胁情报 API 聚合（如 VT、CriminalIP、AbuseIPDB 等）
+- ✅ 内置规则联动 ModSecurity 模拟检测
+- ✅ 支持更多 WebShell 工具识别（Behinder、蚁剑等）
 

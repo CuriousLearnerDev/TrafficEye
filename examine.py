@@ -68,7 +68,7 @@ class SecurityScanner:
         decoded_url = unquote(url)
         # 将 URL 中的 '+' 替换为空格
         decoded_url = decoded_url.replace('+', ' ')
-        print(decoded_url)
+
         return self.scan(decoded_url)
 
 

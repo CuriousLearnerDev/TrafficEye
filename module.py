@@ -2,7 +2,7 @@
 模块功能: 存放公共函数或类，可以被多个模块复用
 作者: W啥都学
 创建日期: 2025-02-25
-修改时间：2025-04-14
+修改时间：2025-04-28
 """
 __author__ = "W啥都学"
 
@@ -19,21 +19,15 @@ from urllib.parse import urlparse
 import platform
 from lib.xdbSearcher import XdbSearcher
 
-# 创建日志文件夹（如果不存在的话）
-log_folder = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
-os.makedirs(log_folder, exist_ok=True)
-
-# 配置日志文件
-log_path = os.path.join(log_folder, "run_{time:YYYY-MM-DD}.log")
-logger.add(log_path, rotation="00:00", retention="7 days", encoding="utf-8")
-
-# 导出 logger 供其他模块使用
-__all__ = ['logger']
+# 配置 loguru 日志记录
+logger.add("logs/run_{time:YYYY-MM-DD}.log", rotation="00:00", retention="7 days", backtrace=False)
 
 
 # 移除ANSI转义码的正则表达式
 ANSI_ESCAPE = re.compile(r'\x1b\[[0-9;]*[mK]')
-
+def some_function(data):
+    """ 记录日志  """
+    logger.info(data)
 
 def create_folder_if_not_exists(self, folder_path):
     """判断文件夹存在不，不存在创建"""
@@ -116,7 +110,6 @@ def get_address_info(url=None,x_forwarded_for=None,ip_src=None):
 def remove_duplicates(input_list):
     """
     去重功能函数，保持列表的顺序。
-
     参数:
         input_list (list): 需要去重的列表。
 
@@ -139,8 +132,7 @@ def Del_Filename(self, filename):
 
 def load_config(): # 获取配置文件
     try:
-        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.yaml')
-        with open(config_path, 'r', encoding='utf-8') as file:
+        with open("config.yaml", 'r', encoding='utf-8') as file:
             config = yaml.safe_load(file)
         return config
     except:
@@ -245,13 +237,13 @@ def extract_domain(urls):
     return domains
 
 
-
-# 提取出来的结果保存起来
 def Searchresults(content, file_name):
     """ 写入文件 """
-    with open(file_name, 'a') as file:
-        file.write(content + '\n')
-
+    try:
+        with open(file_name, 'a') as file:
+            file.write(content + '\n')
+    except Exception as e:
+        logger.info(e)
 def custom_output(content):
     """ 自定义输出，这样统一好管理 """
     from output_filtering import Specify_save

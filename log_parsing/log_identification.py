@@ -2,7 +2,7 @@
 模块功能: 匹配日志的核心代码
 作者: W啥都学
 创建日期: 2025-02-25
-修改时间：2025-04-14
+修改时间：2025-04-28
 """
 
 
@@ -169,7 +169,6 @@ def parse_access_line(log_line, url_count, log_type):
         dt = parse(time, fuzzy=True)
         # 转换为需要的字符串格式
         formatted_time = dt.strftime("%Y-%m-%d %H:%M:%S")
-
 
         path = groups['path']
         method = groups['method']

@@ -2,7 +2,7 @@
 模块功能: GUI
 作者: W啥都学
 创建日期: 2025-02-25
-修改时间：2025-04-25
+修改时间：2025-04-28
 """
 
 __author__ = "W啥都学"
@@ -17,11 +17,10 @@ import sys
 import threading
 import time
 from urllib.parse import unquote
-import urllib.parse
-from urllib.parse import urlparse
 import ai_analysis_core
 import requests
 import yaml
+import module
 from PyQt6.QtPrintSupport import QPrinter
 
 import replay_request
@@ -70,6 +69,27 @@ INITIALIZATION = defaultdict(lambda: {
         })
 
 FULL_DATA = []
+
+
+class LogProcessingThread(QThread):
+    finished = pyqtSignal(dict, object)  # 处理完成信号
+    error = pyqtSignal(str)      # 错误信号
+    progress = pyqtSignal(int)   # 进度信号(可选)
+
+    def __init__(self, file_path, log_type,url_stats,ai_analysis_starts):
+        super().__init__()
+        self.file_path = file_path
+        self.log_type = log_type
+        self.url_stats = url_stats
+        self.ai_analysis_starts = ai_analysis_starts # 判断ai分析
+
+    def run(self):
+
+        log_identification.process_log_file(self.file_path, self.url_stats, self.log_type)
+        self.finished.emit(self.url_stats,self.ai_analysis_starts)
+
+
+
 
 
 class AIAnalysisThread(QThread):
@@ -496,7 +516,7 @@ class MainWindow(QMainWindow):
         # 设置主窗口样式
         self.setStyleSheet(self.get_main_stylesheet())
         # 加载初始配置
-        self.load_config()
+        self.config=module.load_config()
 
 
 
@@ -936,6 +956,7 @@ class MainWindow(QMainWindow):
                 self.analyze_logs(log_type='auto')
             elif file.lower().endswith(('.pcap', '.pcapng', '.cap')):
                 self.start_analysis()
+
             else:
                 QMessageBox.warning(self, "警告", "判断不出来文件类型")
                 return
@@ -2321,12 +2342,10 @@ class MainWindow(QMainWindow):
                 if not "未检测到安全威胁" in i['danger']:
 
                     if i['danger']:
-                        print(i['danger'])
                         danger += 1
         except:
             danger = ""
 
-        print(danger)
         unique_urls = len(self.url_stats)
         source_ips = set()
         status_codes = set()
@@ -2372,6 +2391,7 @@ class MainWindow(QMainWindow):
         result_layout = QVBoxLayout(result_group)
         result_layout.setContentsMargins(8, 15, 8, 8)
 
+
         # 结果文本框
         self.analysis_text_edit = QTextEdit()
         self.analysis_text_edit.setPlaceholderText("分析结果将显示在这里...")
@@ -2394,6 +2414,9 @@ class MainWindow(QMainWindow):
         """)
 
         result_layout.addWidget(self.analysis_text_edit, stretch=1)
+        # 创建状态标签：用于显示当前状态（例如 "就绪"、"分析中" 等）
+        self.status_create_analysis_tab = QLabel()
+        result_layout.addWidget(self.status_create_analysis_tab)
         main_splitter.addWidget(result_group)
 
         # 右侧：控制面板区域
@@ -3425,16 +3448,6 @@ class MainWindow(QMainWindow):
     #
     #     return tab
 
-    def load_config(self):
-        """加载配置文件"""
-
-        with open("config.yaml", "r", encoding="utf-8") as f:
-            self.config = yaml.safe_load(f)
-
-        # 加载代理设置
-        if "proxy_settings" in self.config:
-            self.http_proxy.setText(self.config["proxy_settings"].get("http", ""))
-            self.https_proxy.setText(self.config["proxy_settings"].get("https", ""))
 
     def load_regex_config(self):
         """加载正则表达式配置"""
@@ -3833,7 +3846,8 @@ class MainWindow(QMainWindow):
             }
         """)
         bottom_layout.addWidget(self.request_text_edit)
-
+        self.status_create_replay_tab = QLabel("")
+        bottom_layout.addWidget(self.status_create_replay_tab)
         # ==================== 添加到主分割器 ====================
         main_splitter.addWidget(top_panel)
         main_splitter.addWidget(bottom_panel)
@@ -4015,12 +4029,10 @@ class MainWindow(QMainWindow):
 
     def analyze_logs(self, log_type=None, ai_analysis_starts=None):
         """分析日志文件"""
-        file_path = self.Import_box.text().strip()  # 这样当两个输入栏都有内容时，会优先使用 self.log_file_input 中的内容，否则再使用 self.Import_box 的内容
+        file_path = self.Import_box.text().strip()
         if not file_path.lower().endswith(('.log', '.txt')):
             QMessageBox.warning(self, "警告", "请选择正确的.log文件或者.txt文件!")
             return
-        if not file_path:
-            file_path = self.Import_box.text().strip()
 
         if not file_path:
             QMessageBox.warning(self, "警告", "请先选择日志文件!")
@@ -4028,8 +4040,8 @@ class MainWindow(QMainWindow):
 
         try:
             self.add_recent_activity("开始分析LOG日志", file_path, "运行中")
+            self.log_table.setRowCount(0)
 
-            # 清空表格
             self.url_stats = defaultdict(lambda: {
                 'count': 0,
                 'status_codes': defaultdict(int),
@@ -4039,37 +4051,182 @@ class MainWindow(QMainWindow):
                 'UA': defaultdict(int),
                 "danger": defaultdict(int),
             })
-            self.log_table.setRowCount(0)
 
             # 根据不同类型调用不同的解析方法
             if log_type == 'auto':
                 # 检测什么类型的 日志
                 detected_type = log_identification.guess_log_format(file_path)
-                self.status_label.setText("自动检测到日志类型LOG分析：" + detected_type)
+                self.status_label.setText("自动检测到日志类型LOG分析：" + detected_type+" ———————— 【每隔5秒后刷新统计】【注意！在刷新的时候界面会卡顿】")
                 self.log_table.setItem(0, 0, QTableWidgetItem(f"自动检测到日志类型: {detected_type}"))
                 log_type = detected_type
 
-            log_identification.process_log_file(file_path, self.url_stats, log_type)
+            # 创建并启动工作线程
+            self.worker_thread = LogProcessingThread(file_path, log_type,self.url_stats,ai_analysis_starts)
+            self.worker_thread.finished.connect(self.on_log_processing_finished)
+            self.worker_thread.error.connect(self.on_log_processing_error)
+            self.worker_thread.start()
 
-            if not self.url_stats:
-                self.add_recent_activity("LOG分析", file_path, f"分析可能失败结果是0，结果不匹配可能")
-                self.status_label.setText("分析可能失败结果是0，结果不匹配可能")
-                return
-            self.update_stats_display()
-            self.parse_web_server_log()
-            self.update_dashboard_stats()
-
-            if ai_analysis_starts:  # AI分析记录全部的请求路径
-                ai_analysis_starts["request"]['log'] = [uri for uri in self.url_stats]
-                self.ai_analysis_preparation(ai_analysis_starts)  # 开始AI分析
-            self.add_recent_activity("LOG分析完成", file_path,
-                                     f"分析成功完成一共：{sum(stats['count'] for stats in self.url_stats.values())}请求，唯一URI：{len(self.url_stats)}")
-
-            self.status_label.setText("LOG分析完成")
+            # 创建并启动UI更新定时器
+            self.ui_update_timer = QTimer()
+            self.ui_update_timer.timeout.connect(self.update_ui_periodically)
+            self.ui_update_timer.start(5000)  # 每5秒更新一次UI
 
 
         except Exception as e:
             self.log_table.setItem(0, 0, QTableWidgetItem(f"分析日志时出错: {str(e)}"))
+
+    def update_ui_periodically(self):
+        """定期更新UI的函数"""
+        try:
+            # 计算当前总请求数
+            total_requests = sum(stats['count'] for stats in self.url_stats.values())
+            # 动态调整刷新间隔
+            if total_requests > 1400000:
+                new_interval = 75000  # 75秒
+                if self.ui_update_timer.interval() != new_interval:
+                    self.ui_update_timer.setInterval(new_interval)
+                    self.status_label.setText(f"数据{total_requests}较大，已自动调整刷新间隔为{new_interval // 1000}秒-----【注意！在刷新的时候界面会卡顿】")
+            # 动态调整刷新间隔
+            elif total_requests > 1000000:
+                new_interval = 60000  # 75秒
+                if self.ui_update_timer.interval() != new_interval:
+                    self.ui_update_timer.setInterval(new_interval)
+                    self.status_label.setText(f"数据{total_requests}较大，已自动调整刷新间隔为{new_interval // 1000}秒-----【注意！在刷新的时候界面会卡顿】")
+            # 动态调整刷新间隔
+            elif total_requests > 800000:
+                new_interval = 40000  # 40秒
+                if self.ui_update_timer.interval() != new_interval:
+                    self.ui_update_timer.setInterval(new_interval)
+                    self.status_label.setText(f"数据{total_requests}较大，已自动调整刷新间隔为{new_interval // 1000}秒-----【注意！在刷新的时候界面会卡顿】")
+            # 动态调整刷新间隔
+            elif total_requests > 600000:
+                new_interval = 30000  # 30秒
+                if self.ui_update_timer.interval() != new_interval:
+                    self.ui_update_timer.setInterval(new_interval)
+                    self.status_label.setText(f"数据{total_requests}较大，已自动调整刷新间隔为{new_interval // 1000}秒-----【注意！在刷新的时候界面会卡顿】")
+            # 动态调整刷新间隔
+            elif total_requests > 500000:
+                new_interval = 25000  # 25秒
+                if self.ui_update_timer.interval() != new_interval:
+                    self.ui_update_timer.setInterval(new_interval)
+                    self.status_label.setText(f"数据{total_requests}较大，已自动调整刷新间隔为{new_interval // 1000}秒-----【注意！在刷新的时候界面会卡顿】")
+            # 动态调整刷新间隔
+            elif total_requests > 400000:
+                new_interval = 20000  # 20秒
+                if self.ui_update_timer.interval() != new_interval:
+                    self.ui_update_timer.setInterval(new_interval)
+                    self.status_label.setText(f"数据{total_requests}较大，已自动调整刷新间隔为{new_interval // 1000}秒-----【注意！在刷新的时候界面会卡顿】")
+            # 动态调整刷新间隔
+            elif total_requests > 300000:
+                new_interval = 15000  # 15秒
+                if self.ui_update_timer.interval() != new_interval:
+                    self.ui_update_timer.setInterval(new_interval)
+                    self.status_label.setText(f"数据{total_requests}较大，已自动调整刷新间隔为{new_interval // 1000}秒-----【注意！在刷新的时候界面会卡顿】")
+            # 动态调整刷新间隔
+            elif total_requests > 200000:
+                new_interval = 12000  # 12秒
+                if self.ui_update_timer.interval() != new_interval:
+                    self.ui_update_timer.setInterval(new_interval)
+                    self.status_label.setText(f"数据{total_requests}较大，已自动调整刷新间隔为{new_interval // 1000}秒-----【注意！在刷新的时候界面会卡顿】")
+            # 动态调整刷新间隔
+            elif total_requests > 100000:
+                new_interval = 9000  # 9秒
+                if self.ui_update_timer.interval() != new_interval:
+                    self.ui_update_timer.setInterval(new_interval)
+                    self.status_label.setText(f"数据{total_requests}较大，已自动调整刷新间隔为{new_interval // 1000}秒-----【注意！在刷新的时候界面会卡顿】")
+            else:
+                if self.ui_update_timer.interval() != 5000:  # 恢复默认5秒
+                    self.ui_update_timer.setInterval(5000)
+
+            self.update_stats_display()
+            self.parse_web_server_log()
+            self.update_dashboard_stats()
+        except Exception as e:
+            print(f"更新UI时出错: {str(e)}")
+    def on_log_processing_finished(self, url_stats,ai_analysis_starts):
+        """日志处理完成回调"""
+        # 停止UI更新定时器
+        if hasattr(self, 'ui_update_timer') and self.ui_update_timer.isActive():
+            self.ui_update_timer.stop()
+            # 重置为默认间隔（避免下次分析时继承上次的间隔）
+            self.ui_update_timer.setInterval(5000)
+
+        self.update_stats_display()
+        self.parse_web_server_log()
+        self.update_dashboard_stats()
+
+        if ai_analysis_starts:
+            ai_analysis_starts["request"]['log'] = [uri for uri in self.url_stats]
+            self.ai_analysis_preparation(ai_analysis_starts)
+
+        self.add_recent_activity("LOG分析完成", self.Import_box.text().strip(),
+                                 f"分析成功完成一共：{sum(stats['count'] for stats in self.url_stats.values())}请求，唯一URI：{len(self.url_stats)}")
+        self.status_label.setText("LOG分析完成")
+
+    def on_log_processing_error(self, error_msg):
+        """日志处理错误回调"""
+        # 停止UI更新定时器
+        if hasattr(self, 'ui_update_timer') and self.ui_update_timer.isActive():
+            self.ui_update_timer.stop()
+        self.log_table.setItem(0, 0, QTableWidgetItem(f"分析日志时出错: {error_msg}"))
+        self.status_label.setText("日志分析出错")
+    # def analyze_logs(self, log_type=None, ai_analysis_starts=None):
+    #     """分析日志文件"""
+    #     file_path = self.Import_box.text().strip()  # 这样当两个输入栏都有内容时，会优先使用 self.log_file_input 中的内容，否则再使用 self.Import_box 的内容
+    #     if not file_path.lower().endswith(('.log', '.txt')):
+    #         QMessageBox.warning(self, "警告", "请选择正确的.log文件或者.txt文件!")
+    #         return
+    #     if not file_path:
+    #         file_path = self.Import_box.text().strip()
+    #
+    #     if not file_path:
+    #         QMessageBox.warning(self, "警告", "请先选择日志文件!")
+    #         return
+    #
+    #     try:
+    #         self.add_recent_activity("开始分析LOG日志", file_path, "运行中")
+    #
+    #         # 清空表格
+    #         self.url_stats = defaultdict(lambda: {
+    #             'count': 0,
+    #             'status_codes': defaultdict(int),
+    #             'source_ips': defaultdict(int),
+    #             'methods': defaultdict(int),
+    #             'request_time': defaultdict(int),
+    #             'UA': defaultdict(int),
+    #             "danger": defaultdict(int),
+    #         })
+    #         self.log_table.setRowCount(0)
+    #
+    #         # 根据不同类型调用不同的解析方法
+    #         if log_type == 'auto':
+    #             # 检测什么类型的 日志
+    #             detected_type = log_identification.guess_log_format(file_path)
+    #             self.status_label.setText("自动检测到日志类型LOG分析：" + detected_type)
+    #             self.log_table.setItem(0, 0, QTableWidgetItem(f"自动检测到日志类型: {detected_type}"))
+    #             log_type = detected_type
+    #
+    #         log_identification.process_log_file(file_path, self.url_stats, log_type)
+    #
+    #         if not self.url_stats:
+    #             self.add_recent_activity("LOG分析", file_path, f"分析可能失败结果是0，结果不匹配可能")
+    #             self.status_label.setText("分析可能失败结果是0，结果不匹配可能")
+    #             return
+    #         self.update_stats_display()
+    #         self.parse_web_server_log()
+    #         self.update_dashboard_stats()
+    #
+    #         if ai_analysis_starts:  # AI分析记录全部的请求路径
+    #             ai_analysis_starts["request"]['log'] = [uri for uri in self.url_stats]
+    #             self.ai_analysis_preparation(ai_analysis_starts)  # 开始AI分析
+    #         self.add_recent_activity("LOG分析完成", file_path,
+    #                                  f"分析成功完成一共：{sum(stats['count'] for stats in self.url_stats.values())}请求，唯一URI：{len(self.url_stats)}")
+    #
+    #         self.status_label.setText("LOG分析完成")
+    #
+    #
+    #     except Exception as e:
+    #         self.log_table.setItem(0, 0, QTableWidgetItem(f"分析日志时出错: {str(e)}"))
 
     def parse_web_server_log(self):
         """解析Web服务器日志并填充表格"""
@@ -4296,12 +4453,18 @@ class MainWindow(QMainWindow):
         """开始流量分析"""
         # 清除之前的结果
         self.analysis_text_edit.clear()
+        self.memory_optimization=False # 当值变成了真会叫数据写入到硬盘里面
+        self.status_create_analysis_tab.setText("")
+
         # self.progress_bar.setValue(0)
 
         file = self.Import_box.text()
         if not file:
             QMessageBox.warning(self, "警告", "请先选择流量文件!")
             return
+        base_name = os.path.basename(file)  # 取文件名，比如 gsl.cap
+        folder_name = os.path.splitext(base_name)[0]  # 去掉扩展名，比如 gsl
+        self.start_analysis_timestamp = folder_name+"_"+datetime.datetime.now().strftime("%Y%m%d_%H%M%S")+".txt"
 
         uri = self.uri_input.text()
         keyword = self.search_input.text()
@@ -4312,6 +4475,8 @@ class MainWindow(QMainWindow):
         # 禁用按钮，防止重复点击
         self.start_analysis_button.setEnabled(False)
         self.stop_analysis_button.setEnabled(True)
+
+
         self.status_label.setText("分析进行中...")
 
         # 启动分析线程
@@ -4381,10 +4546,28 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "错误", f"导出失败: {str(e)}")
                 self.add_recent_activity("导出结果", file_path, f"失败: {str(e)}")
 
-    def update_results(self, text):
-        """更新分析结果"""
+    def memory_optimization_invoke(self,textedit,status_create,text=None, max_lines=200000, auto_save=True):
 
+        # 检查当前行数
+        line_count = textedit.document().blockCount()
+
+        if self.memory_optimization:
+            module.Searchresults(text, self.start_analysis_timestamp)
+
+        if line_count >= max_lines and auto_save:
+            if self.memory_optimization==False: # 保持前5000行内容
+                #self.add_recent_activity("警告", self.Import_box.text(), f"[提示] 输出已超过{max_lines}行，完整内容保存到: {self.start_analysis_timestamp}")
+                # 获取清空前的数据
+                status_create.setText(f"[提示] 输出已超过{max_lines}行，完整内容保存到: {self.start_analysis_timestamp}")
+                full_content = textedit.toPlainText()
+                module.Searchresults(full_content,self.start_analysis_timestamp)
+            textedit.clear() # 清空列表内容
+            self.memory_optimization=True # 启动内存优化
+
+
+    def update_results(self, text):
         self.analysis_text_edit.append(text)
+        self.memory_optimization_invoke(self.analysis_text_edit,self.status_create_analysis_tab,text=text)
 
     # 在AnalysisThread类的analysis_finished方法中添加自动分析逻辑
     def analysis_finished(self, ai_analysis_storing_data=None):
@@ -4446,7 +4629,6 @@ class MainWindow(QMainWindow):
 
             # 格式化UA
             UA = "\n".join(f"{k}:次数{v}" for k, v in stats.get('UA', {}).items())
-            print(UA)
             self.url_table.setItem(row, 5, QTableWidgetItem(UA))
         self.url_table.setSortingEnabled(True)
 
@@ -4542,7 +4724,6 @@ class MainWindow(QMainWindow):
                 time_buckets[minute_precision] += 1
 
         sorted_times = sorted(time_buckets.items())  # 按时间排序
-        print(sorted_times)
 
         time_series = QLineSeries()
         time_series.setPointsVisible(True)
@@ -5658,6 +5839,12 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "警告", "请先选择流量文件!")
             return
 
+        self.memory_optimization = False  # 当值变成了真会叫数据写入到硬盘里面
+        self.status_create_replay_tab.setText("")
+        base_name = os.path.basename(file)  # 取文件名，比如 gsl.cap
+        folder_name = os.path.splitext(base_name)[0]  # 去掉扩展名，比如 gsl
+        self.start_analysis_timestamp = folder_name+"_"+datetime.datetime.now().strftime("%Y%m%d_%H%M%S")+".txt"
+
         # 清除之前的结果
         self.request_text_edit.clear()
 
@@ -6423,6 +6610,9 @@ class MainWindow(QMainWindow):
     def update_replay_request(self, text):
         """更新请求显示"""
         self.request_text_edit.append(text)
+        self.memory_optimization_invoke(self.request_text_edit,self.status_create_replay_tab, text=text)
+
+
 
     def clear_replay_results(self):
         """清除重放结果"""
@@ -6477,7 +6667,6 @@ class MainWindow(QMainWindow):
             self.replay_thread.wait()
 
         event.accept()
-
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

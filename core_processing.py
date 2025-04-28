@@ -2,7 +2,7 @@
 模块功能: 核心处理模块：处理 HTTP 请求/响应数据的解析和转换
 作者: W啥都学
 创建日期: 2025-02-25
-修改时间：2025-04-23
+修改时间：2025-04-28
 """
 
 import subprocess
@@ -81,7 +81,7 @@ def core_processing(pkt, url_count, session_data=None):
             else:
                 # 如果 'request_time' 不是列表，则初始化为列表并添加时间
                 url_count[full_uri]['request_time'] = [time]
-        print(time)
+
         # 获取头部
         headers = processing_head_json(pkt.http.request_line.all_fields)
 
@@ -145,6 +145,8 @@ def based_on_tshark(traffic_file,sslkeylogfile=None):
     # 设置 tShark 命令
     command = [
         tshark,
+        # "-i", "wlan0",
+        # "-l",
         "-r", traffic_file,
         "-T", "fields",
         "-Y", "http || http2",
