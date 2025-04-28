@@ -3,7 +3,7 @@
 
 GIhutb下载地址：👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
 
-夸克网盘（提取码：BzHb）：👉 https://pan.quark.cn/s/3e125e4c13b7
+夸克网盘（提取码：qL9J）：👉 链接：https://pan.quark.cn/s/696b297fdf73
 
 
 ### 📅 最近研发进度
