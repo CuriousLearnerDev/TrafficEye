@@ -51,9 +51,9 @@ import webbrowser
 from log_parsing import log_identification
 from binary_extraction import load_signatures, extract_file
 
-version = "0.0.5"
+version = "0.0.4"
 
-last_updated = "2025-04-28"
+last_updated = "2025-04-20"
 
 # 设置代理
 proxies = None
@@ -545,6 +545,14 @@ class MainWindow(QMainWindow):
     def get_main_stylesheet(self):
         """返回主样式表"""
         return """
+            QToolTip {
+                background-color: #2D2D2D;
+                color: #FFFFFF;
+                border: 1px solid #0078D7;
+                padding: 5px;
+                border-radius: 5px;
+                font-size: 12px;
+            }
             QMainWindow {
                 background-color: #2D2D2D;
             }
@@ -2342,6 +2350,7 @@ class MainWindow(QMainWindow):
                 if not "未检测到安全威胁" in i['danger']:
 
                     if i['danger']:
+                        print(i['danger'])
                         danger += 1
         except:
             danger = ""
@@ -3057,29 +3066,36 @@ class MainWindow(QMainWindow):
         #self.url_table.setColumnWidth(0, 700)
         self.url_table.horizontalHeader().setStretchLastSection(True)
         self.url_table.setStyleSheet("""
+            /* 整体表格样式 */
             QTableWidget {
-                border: none;
-                background-color: #252525;
-                alternate-background-color: #2D2D2D;
-                selection-background-color: #3A3A3A;
-                color: #DDDDDD;
+                border: none; /* 无边框 */
+                background-color: #252525; /* 背景色：深灰 */
+                alternate-background-color: #2D2D2D; /* 交替行颜色 */
+                selection-background-color: #3A3A3A; /* 选中时的背景色（备用，item:selected里也有） */
+                color: #DDDDDD; /* 默认字体颜色 */
             }
+
+            /* 表头样式 */
             QHeaderView::section {
-                background-color: #2D2D2D;
-                padding: 10px;
-                border: none;
-                font-weight: bold;
-                color: #AAAAAA;
+                background-color: #2D2D2D; /* 表头背景色 */
+                padding: 10px; /* 表头内边距 */
+                border: none; /* 无边框 */
+                font-weight: bold; /* 字体加粗 */
+                color: #AAAAAA; /* 表头字体颜色 */
             }
+
+            /* 单元格普通状态样式 */
             QTableWidget::item {
-                padding: 8px;
-                border-bottom: 1px solid #3A3A3A;
+                border-bottom: 1px solid #0078D7; /* 单元格底部分隔线 */
             }
+
+            /* 单元格选中状态样式 */
             QTableWidget::item:selected {
-                background-color: #3A3A3A;
-                color: white;
+                background-color: #0078D7; /* 选中时背景色：亮蓝色 */
+                color: white; /* 选中时字体颜色 */
             }
         """)
+
         self.url_table.verticalHeader().setVisible(False)
 
         url_header = QWidget(url_group)
@@ -4546,7 +4562,7 @@ class MainWindow(QMainWindow):
                 QMessageBox.critical(self, "错误", f"导出失败: {str(e)}")
                 self.add_recent_activity("导出结果", file_path, f"失败: {str(e)}")
 
-    def memory_optimization_invoke(self,textedit,status_create,text=None, max_lines=200000, auto_save=True):
+    def memory_optimization_invoke(self,textedit,status_create,text=None, max_lines=5000, auto_save=True):
 
         # 检查当前行数
         line_count = textedit.document().blockCount()
@@ -4629,6 +4645,7 @@ class MainWindow(QMainWindow):
 
             # 格式化UA
             UA = "\n".join(f"{k}:次数{v}" for k, v in stats.get('UA', {}).items())
+            print(UA)
             self.url_table.setItem(row, 5, QTableWidgetItem(UA))
         self.url_table.setSortingEnabled(True)
 
