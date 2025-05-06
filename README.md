@@ -7,6 +7,9 @@ GIhutb下载地址：👉 https://github.com/CuriousLearnerDev/TrafficEye/releas
 
 
 ### 📅 最近研发进度
+2025-05-02：增加分析的IP访问URI统计
+
+2025-05-01：优化LOG文件分析
 
 2025-04-28：全流量大文件分析内存优化，输出超过20万行时自动写入硬盘，降低内存占用
 
