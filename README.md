@@ -10,7 +10,7 @@ GIhutb下载地址：👉 https://github.com/CuriousLearnerDev/TrafficEye/releas
 ### 📅 最近研发进度
 2025-05-03：增加分析的IP访问URI统计
 
-![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250506134746774.png)
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/image-20250508153151757.png)
 
 2025-05-02：日志分析的实时交互体验（动态更新）
 
