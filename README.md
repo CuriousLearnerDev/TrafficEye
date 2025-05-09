@@ -300,4 +300,4 @@ AI分析
 - ✅ 支持更多 WebShell 工具识别（Behinder、蚁剑等）
 
 ✨随着时间的推移，观星者
-[![Stargazers over time](https://starchart.cc/CuriousLearnerDev/TrafficEye.svg?variant=adaptive)](https://starchart.cc/CuriousLearnerDev/TrafficEye)
+[![Stargazers over time](https://starchart.cc/CuriousLearnerDev/TrafficEye.svg?variant=light)](https://starchart.cc/CuriousLearnerDev/TrafficEye)
