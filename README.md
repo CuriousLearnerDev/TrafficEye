@@ -299,3 +299,5 @@ AI分析
 - ✅ 内置规则联动 ModSecurity 模拟检测
 - ✅ 支持更多 WebShell 工具识别（Behinder、蚁剑等）
 
+✨随着时间的推移，观星者
+[![Stargazers over time](https://starchart.cc/CuriousLearnerDev/TrafficEye.svg?variant=adaptive)](https://starchart.cc/CuriousLearnerDev/TrafficEye)
