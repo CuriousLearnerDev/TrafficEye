@@ -1,11 +1,46 @@
+### 📥 已经打包好的下载地址：
 
-📥 已经打包好的下载地址：
+GIhutb下载地址：（windows_x64）👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
 
-GIhutb下载地址：👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
+夸克网盘（windows_x64）（提取码：cc77）：👉 链接：https://pan.quark.cn/s/7e9bfeee36ca
 
+夸克网盘（linux_amd_x64）（提取码：UhCH）：👉 链接：https://pan.quark.cn/s/3bc2e22d6b8e
 
+### 🛠️ 使用说明
+
+#### 🔧 Linux 系统用户
+
+> ⚠️ **前置依赖：需安装 `tshark`**
+
+安装命令如下：
+
+```bash
+sudo apt install tshark
+```
+
+运行步骤如下：
+
+```bash
+unzip linux_amd_x64_0.0.zip     # 解压
+cd linux_amd_x64_0.0.7          # 进入目录
+chmod +x main                   # 添加执行权限
+./main                          # 启动程序
+```
+
+------
+
+#### 🖱️ Windows 系统用户
+
+> ✅ 已集成 `tshark`，免安装依赖
+
+运行方法：
+
+```text
+双击运行主程序即可
+```
 
 ### 📅 最近研发进度
+
 2025-05-10：性能优化、数据与视图分离、避免重复加载相同的图标文件、减少GUI操作、模型只在需要时提供数据
 
 2025-05-03：增加分析的IP访问URI统计
