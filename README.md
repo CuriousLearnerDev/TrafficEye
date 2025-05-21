@@ -1,4 +1,4 @@
-### 📥 已经打包好的下载地址：
+![qrcode_for_gh_e911bdfdbe01_344](https://github.com/user-attachments/assets/d59b77f3-87aa-42d5-a203-3cd08e9f17e4)### 📥 已经打包好的下载地址：
 
 GIhutb下载地址：（windows_x64）👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
 
@@ -335,6 +335,10 @@ AI分析
 - ✅ 威胁情报 API 聚合（如 VT、CriminalIP、AbuseIPDB 等）
 - ✅ 内置规则联动 ModSecurity 模拟检测
 - ✅ 支持更多 WebShell 工具识别（Behinder、蚁剑等）
+
+### 作者公众号
+
+![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/qrcode_for_gh_e911bdfdbe01_344.png)
 
 ✨随着时间的推移，观星者
 [![Stargazers over time](https://starchart.cc/CuriousLearnerDev/TrafficEye.svg?variant=light)](https://starchart.cc/CuriousLearnerDev/TrafficEye)
