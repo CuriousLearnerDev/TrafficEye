@@ -1,4 +1,4 @@
-![qrcode_for_gh_e911bdfdbe01_344](https://github.com/user-attachments/assets/d59b77f3-87aa-42d5-a203-3cd08e9f17e4)### 📥 已经打包好的下载地址：
+### 📥 已经打包好的下载地址：
 
 GIhutb下载地址：（windows_x64）👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
 
