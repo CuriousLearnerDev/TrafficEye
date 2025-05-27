@@ -1,10 +1,10 @@
 ### 📥 已经打包好的下载地址：
 
-GIhutb下载地址：（windows_x64）👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
+GIhutb下载地址：👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
 
-夸克网盘（windows_x64）（提取码：cc77）：👉 链接：https://pan.quark.cn/s/7e9bfeee36ca
+夸克网盘（windows_x64）（提取码：pyP4）：👉 链接：https://pan.quark.cn/s/802adf374301
 
-夸克网盘（linux_amd_x64）（提取码：UhCH）：👉 链接：https://pan.quark.cn/s/3bc2e22d6b8e
+夸克网盘（linux_amd_x64）（提取码：3r7C）：👉 链接：https://pan.quark.cn/s/8d6188476cc0
 
 ### 🛠️ 使用说明
 
