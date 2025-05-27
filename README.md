@@ -21,8 +21,8 @@ sudo apt install tshark
 运行步骤如下：
 
 ```bash
-unzip linux_amd_x64_0.0.zip     # 解压
-cd linux_amd_x64_0.0.7          # 进入目录
+unzip linux_amd_x64_0.0.8.zip     # 解压
+cd linux_amd_x64_0.0.8          # 进入目录
 chmod +x main                   # 添加执行权限
 ./main                          # 启动程序
 ```
