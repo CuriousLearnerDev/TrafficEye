@@ -1,18 +1,15 @@
 ### 问题反应群
 
-> 目前已经问题在修改，运行报错闪退 `illegal IP address string passed to inet_aton` 问题已经找到没有添加ipv6过滤，最近两天会修复 6月5号前修复
-> 
-> 识别log文件内容的校验已经修复完成在打包上传了这两天 6月5号前修复
 
 ![2025-06-03_11-45](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/2025-06-03_11-45.png)
 
 ### 📥 已经打包好的下载地址：
 
-GIhutb下载地址：👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
+GIhutb下载地址0.0.8.1版：👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
 
-夸克网盘（windows_x64）（提取码：pyP4）：👉 链接：https://pan.quark.cn/s/802adf374301
+夸克网盘0.0.8（windows_x64）（提取码：pyP4）：👉 链接：https://pan.quark.cn/s/802adf374301
 
-夸克网盘（linux_amd_x64）（提取码：3r7C）：👉 链接：https://pan.quark.cn/s/8d6188476cc0
+夸克网盘0.0.8（linux_amd_x64）（提取码：3r7C）：👉 链接：https://pan.quark.cn/s/8d6188476cc0
 
 ### 🛠️ 使用说明
 
