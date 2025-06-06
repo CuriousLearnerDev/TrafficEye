@@ -7,9 +7,10 @@
 
 GIhutb下载地址0.0.8.1版：👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
 
-夸克网盘0.0.8（windows_x64）（提取码：pyP4）：👉 链接：https://pan.quark.cn/s/802adf374301
+夸克网盘0.0.8.1（windows_x64）（提取码：yZbA）：👉 链接：https://pan.quark.cn/s/bdb9e32e512e
 
-夸克网盘0.0.8（linux_amd_x64）（提取码：3r7C）：👉 链接：https://pan.quark.cn/s/8d6188476cc0
+夸克网盘0.0.8.1（linux_amd_x64）（提取码：J9ZL）：👉 链接：https://pan.quark.cn/s/f96aaad42ef0
+
 
 ### 🛠️ 使用说明
 
@@ -26,8 +27,8 @@ sudo apt install tshark
 运行步骤如下：
 
 ```bash
-unzip linux_amd_x64_0.0.8.zip     # 解压
-cd linux_amd_x64_0.0.8          # 进入目录
+unzip linux_amd_x64_0.0.8.1.zip     # 解压
+cd linux_amd_x64_0.0.8.1          # 进入目录
 chmod +x main                   # 添加执行权限
 ./main                          # 启动程序
 ```
