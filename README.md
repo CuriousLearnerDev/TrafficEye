@@ -7,9 +7,9 @@
 
 GIhutb下载地址0.0.8.1版：👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
 
-夸克网盘0.0.8.1（windows_x64）（提取码：yZbA）：👉 链接：https://pan.quark.cn/s/bdb9e32e512e
+夸克网盘0.0.8.1（windows_x64）（提取码：Hzpy）：👉 链接：https://pan.quark.cn/s/f81edabb16d6
 
-夸克网盘0.0.8.1（linux_amd_x64）（提取码：J9ZL）：👉 链接：https://pan.quark.cn/s/f96aaad42ef0
+夸克网盘0.0.8.1（linux_amd_x64）（提取码：XXSB）：👉 链接：https://pan.quark.cn/s/f6556145dd20
 
 
 ### 🛠️ 使用说明
