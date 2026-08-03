@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TrafficEye · 访问态势大屏</title>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/globe.gl@2.32.1/dist/globe.gl.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.1/dist/echarts.min.js"></script>
+  <script src="./world.js"></script>
+  <script src="./china.js"></script>
+  <style>
+    :root {
+      --bg: #050b16;
+      --panel: rgba(8, 18, 36, 0.82);
+      --line: rgba(64, 140, 220, 0.28);
+      --text: #d9e8ff;
+      --muted: #7f9bb8;
+      --accent: #3ecbff;
+      --warn: #ff7b7b;
+      --good: #5dffa8;
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%; overflow: hidden;
+      color: var(--text);
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background:
+        radial-gradient(ellipse 80% 50% at 50% -10%, rgba(30,90,160,.35), transparent 55%),
+        radial-gradient(ellipse 60% 40% at 80% 100%, rgba(20,60,100,.25), transparent 50%),
+        var(--bg);
+    }
+    .screen {
+      position: absolute; inset: 0;
+      display: grid;
+      grid-template-rows: 64px 1fr 168px;
+      grid-template-columns: 300px 1fr 360px;
+      gap: 12px;
+      padding: 12px 14px 14px;
+    }
+    .header {
+      grid-column: 1 / -1;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 8px 0 4px;
+      border-bottom: 1px solid var(--line);
+      position: relative;
+    }
+    .header::after {
+      content: ""; position: absolute; left: 10%; right: 10%; bottom: -1px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: .55;
+    }
+    .brand { display: flex; flex-direction: column; gap: 2px; }
+    .brand b {
+      font-size: 22px; letter-spacing: 2px; font-weight: 700;
+      background: linear-gradient(90deg, #9fdfff, #3ecbff 55%, #7af0c8);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .brand span { font-size: 12px; color: var(--muted); letter-spacing: 1px; }
+    .kpis { display: flex; gap: 10px; }
+    .kpi {
+      min-width: 118px; padding: 8px 12px; border-radius: 10px;
+      background: linear-gradient(160deg, rgba(20,50,90,.55), rgba(10,25,50,.35));
+      border: 1px solid var(--line);
+    }
+    .kpi em { display: block; font-style: normal; font-size: 11px; color: var(--muted); }
+    .kpi strong { font-size: 20px; font-variant-numeric: tabular-nums; color: #fff; }
+    .hdr-actions { display: flex; gap: 8px; align-items: center; }
+    .hdr-actions button, .side-ops button {
+      border: 1px solid var(--line); background: rgba(30,70,130,.35);
+      color: var(--text); border-radius: 8px; padding: 7px 12px; cursor: pointer; font-size: 12px;
+    }
+    .hdr-actions button.active, .side-ops button.active {
+      background: linear-gradient(135deg, rgba(40,120,210,.7), rgba(30,90,160,.5));
+      border-color: rgba(120,190,255,.55);
+    }
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      backdrop-filter: blur(8px);
+      overflow: hidden;
+      display: flex; flex-direction: column;
+    }
+    .panel .pt {
+      padding: 10px 12px 8px;
+      font-size: 13px; color: #9fd6ff; font-weight: 600;
+      border-bottom: 1px solid rgba(255,255,255,.06);
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .panel .pb { flex: 1; min-height: 0; padding: 8px 10px 10px; overflow: auto; }
+    .left { grid-row: 2; grid-column: 1; }
+    .center { grid-row: 2; grid-column: 2; position: relative; background: transparent; border: none; }
+    .right { grid-row: 2; grid-column: 3; }
+    .bottom { grid-column: 1 / -1; }
+    #globeBox {
+      position: absolute; inset: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    #globeHost {
+      width: min(100%, 100%);
+      aspect-ratio: 1 / 1;
+      max-height: 100%;
+      position: relative;
+    }
+    #globe { position: absolute; inset: 0; }
+    #globe canvas { display: block !important; width: 100% !important; height: 100% !important; }
+    #chinaMap { width: 100%; height: 100%; min-height: 280px; }
+    #rankChart { width: 100%; height: 100%; min-height: 130px; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; }
+    th, td { padding: 6px 4px; border-bottom: 1px solid rgba(255,255,255,.05); text-align: left; }
+    th { color: #7eb6e8; font-weight: 500; position: sticky; top: 0; background: rgba(8,18,36,.95); }
+    tr.risk td { color: var(--warn); }
+    .bar {
+      height: 6px; border-radius: 3px; background: rgba(255,255,255,.06); overflow: hidden;
+    }
+    .bar i { display: block; height: 100%; background: linear-gradient(90deg, #1f6fbf, #3ecbff); }
+    .hint { font-size: 11px; color: var(--muted); line-height: 1.45; margin-top: 6px; }
+    .loading, .err {
+      position: absolute; inset: 0; z-index: 50;
+      display: flex; align-items: center; justify-content: center; flex-direction: column;
+      background: var(--bg); color: var(--accent);
+    }
+    .err { display: none; }
+    .err.show { display: flex; }
+    .err p { color: var(--muted); max-width: 480px; text-align: center; }
+    @media (max-width: 1200px) {
+      .screen {
+        grid-template-columns: 1fr;
+        grid-template-rows: 64px 42vh auto auto auto;
+        overflow: auto;
+      }
+      .left, .center, .right, .bottom { grid-column: 1; }
+      .center { min-height: 42vh; }
+    }
+  </style>
+</head>
+<body>
+  <div class="loading" id="loading">正在构建态势大屏…</div>
+  <div class="err" id="err"><h2>加载失败</h2><p id="errMsg"></p></div>
+
+  <div class="screen" id="screen" style="visibility:hidden">
+    <header class="header">
+      <div class="brand">
+        <b>TrafficEye 访问态势</b>
+        <span id="generated">—</span>
+      </div>
+      <div class="kpis" id="kpis"></div>
+      <div class="hdr-actions">
+        <button type="button" class="active" id="btnWorld">全球地球</button>
+        <button type="button" id="btnChina">中国省份</button>
+        <button type="button" id="btnRotate">暂停旋转</button>
+      </div>
+    </header>
+
+    <aside class="panel left">
+      <div class="pt"><span id="leftTitle">来源国家 TOP</span><span style="font-size:11px;color:var(--muted)">点击定位</span></div>
+      <div class="pb">
+        <table>
+          <thead><tr><th>#</th><th id="colName">国家</th><th>请求</th><th>占比</th></tr></thead>
+          <tbody id="rankRows"></tbody>
+        </table>
+        <div class="hint" id="hint">企业态势大屏布局：全球球 + 省级图 + 排行。默认仅渲染 Top 访问源以保证流畅。</div>
+      </div>
+    </aside>
+
+    <section class="panel center" id="centerPanel">
+      <div id="globeBox"><div id="globeHost"><div id="globe"></div></div></div>
+      <div id="chinaMap" style="display:none"></div>
+    </section>
+
+    <aside class="panel right">
+      <div class="pt"><span>中国省级热力</span><span style="font-size:11px;color:var(--muted)">IP 归属解析</span></div>
+      <div class="pb" style="padding:4px; display:flex; flex-direction:column;">
+        <div id="chinaMini" style="flex:1; min-height:260px;"></div>
+        <div class="hint">右侧始终显示省级分布；点顶栏「中国省份」可放大到主视角。</div>
+      </div>
+    </aside>
+
+    <section class="panel bottom">
+      <div class="pt"><span>访问量对比</span><span style="font-size:11px;color:var(--muted)" id="bottomSub">Top 国家</span></div>
+      <div class="pb" style="padding:4px 8px;"><div id="rankChart"></div></div>
+    </section>
+  </div>
+
+  <script>
+    window.GLOBE_DATA = %%GLOBE_DATA%%;
+
+    const TOP_N = 20;
+    let data = null;
+    let mode = 'world'; // world | china
+    let rotating = true;
+    let globe = null;
+    let worldFlat = null; // WebGL 不可用时的 2D 世界图
+    let useFlatWorld = false;
+    let chinaMain = null;
+    let chinaMini = null;
+    let rankChart = null;
+    let worldFeatures = [];
+
+    function $(id) { return document.getElementById(id); }
+    function showErr(m) {
+      $('loading').style.display = 'none';
+      $('err').classList.add('show');
+      $('errMsg').textContent = m;
+    }
+    function fmt(n) { return Number(n || 0).toLocaleString(); }
+
+    function canUseWebGL() {
+      try {
+        const c = document.createElement('canvas');
+        const gl = c.getContext('webgl2') || c.getContext('webgl') || c.getContext('experimental-webgl');
+        return !!gl;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function validCountries(list) {
+      return (list || []).filter(c =>
+        c && c.name && !['未知','Unknown','内网'].includes(c.name) &&
+        !(Math.abs(c.lng||0) < 0.01 && Math.abs((c.lat||0)-20) < 0.01)
+      ).sort((a,b) => (b.value||0)-(a.value||0));
+    }
+
+    function heat(t, risk) {
+      t = Math.max(0, Math.min(1, t));
+      if (risk) return `rgba(${Math.round(190+t*50)},70,70,0.92)`;
+      return `rgba(${Math.round(25+t*50)},${Math.round(110+t*110)},${Math.round(170+t*50)},0.92)`;
+    }
+
+    function renderKpis() {
+      const s = data.summary || {};
+      const chinaReq = s.china_requests || (data.provinces||[]).reduce((a,c)=>a+(c.value||0),0);
+      $('kpis').innerHTML = [
+        ['总请求', s.requests||0],
+        ['独立 IP', s.unique_ips||0],
+        ['国家/地区', s.countries||0],
+        ['中国省份', s.provinces || (data.provinces||[]).length],
+        ['中国请求', chinaReq],
+        ['风险命中', s.risk_hits||0],
+      ].map(([k,v]) => `<div class="kpi"><em>${k}</em><strong>${fmt(v)}</strong></div>`).join('');
+    }
+
+    function renderLeftRank() {
+      const rows = mode === 'china'
+        ? (data.provinces || []).slice(0, 30)
+        : validCountries(data.countries).slice(0, 30);
+      const total = Math.max(1, rows.reduce((a,c)=>a+(c.value||0),0));
+      const max = Math.max(1, ...rows.map(r => r.value||0));
+      $('leftTitle').textContent = mode === 'china' ? '中国省份 TOP' : '来源国家 TOP';
+      $('colName').textContent = mode === 'china' ? '省份' : '国家';
+      $('rankRows').innerHTML = rows.map((c,i) => {
+        const pct = ((c.value||0)/total*100).toFixed(1);
+        const w = ((c.value||0)/max*100).toFixed(1);
+        const risk = (c.risk||0) > 0;
+        return `<tr class="${risk?'risk':''}" data-i="${i}" data-name="${c.name}" data-lng="${c.lng||''}" data-lat="${c.lat||''}">
+          <td>${i+1}</td><td>${c.name}</td><td>${fmt(c.value)}</td>
+          <td style="min-width:72px"><div class="bar"><i style="width:${w}%"></i></div><span style="font-size:10px;color:#7f9bb8">${pct}%</span></td>
+        </tr>`;
+      }).join('') || '<tr><td colspan="4">暂无数据</td></tr>';
+
+      $('rankRows').onclick = (e) => {
+        const tr = e.target.closest('tr[data-name]');
+        if (!tr) return;
+        if (mode === 'world' && globe && tr.dataset.lat) {
+          globe.pointOfView({ lat: +tr.dataset.lat, lng: +tr.dataset.lng, altitude: 1.7 }, 800);
+        }
+      };
+    }
+
+    function renderBottomChart() {
+      if (!rankChart) rankChart = echarts.init($('rankChart'));
+      const rows = (mode === 'china' ? (data.provinces||[]) : validCountries(data.countries)).slice(0, 12).reverse();
+      $('bottomSub').textContent = mode === 'china' ? 'Top 省份' : 'Top 国家';
+      rankChart.setOption({
+        grid: { left: 80, right: 24, top: 12, bottom: 24 },
+        xAxis: { type: 'value', axisLabel: { color: '#7f9bb8' }, splitLine: { lineStyle: { color: 'rgba(255,255,255,.06)' } } },
+        yAxis: { type: 'category', data: rows.map(r => r.name), axisLabel: { color: '#cfe6ff' } },
+        series: [{
+          type: 'bar',
+          data: rows.map(r => r.value),
+          barWidth: 10,
+          itemStyle: {
+            borderRadius: [0, 6, 6, 0],
+            color: new echarts.graphic.LinearGradient(0,0,1,0,[
+              { offset: 0, color: '#1a4f8c' },
+              { offset: 1, color: '#3ecbff' }
+            ])
+          }
+        }],
+        tooltip: { trigger: 'axis' }
+      }, true);
+    }
+
+    function applyGlobe() {
+      if (!globe) return;
+      const countries = validCountries(data.countries).slice(0, TOP_N);
+      const maxVal = Math.max(1, ...countries.map(c => c.value||0));
+      const valueByMap = {}, riskByMap = {};
+      countries.forEach(c => {
+        const k = c.map_name || c.name;
+        if (!k) return;
+        valueByMap[k] = (valueByMap[k]||0) + (c.value||0);
+        riskByMap[k] = (riskByMap[k]||0) + (c.risk||0);
+      });
+      const target = data.target || { lng: 116.4, lat: 39.9 };
+      const arcs = countries.slice(0, 16).map(c => ({
+        startLat: c.lat, startLng: c.lng, endLat: target.lat, endLng: target.lng,
+        value: c.value, risk: (c.risk||0)>0, name: c.name
+      }));
+      const visited = new Set(Object.keys(valueByMap));
+      const polys = worldFeatures.filter(f => visited.has((f.properties||{}).name)).map(f => {
+        const name = (f.properties||{}).name;
+        const v = valueByMap[name]||0;
+        const t = Math.sqrt(v/maxVal);
+        return Object.assign({}, f, {
+          __alt: 0.01 + t * 0.12,
+          __cap: heat(t, riskByMap[name]>0),
+          __side: 'rgba(40,90,140,0.35)',
+          __value: v, __name: name
+        });
+      });
+      const points = countries.map(c => ({
+        lat: c.lat, lng: c.lng,
+        size: 0.12 + Math.sqrt((c.value||0)/maxVal)*0.55,
+        color: (c.risk||0)>0 ? '#ff6b6b' : '#7af0ff',
+        name: c.name, value: c.value
+      }));
+
+      globe
+        .polygonsData(polys)
+        .polygonAltitude(d => d.__alt)
+        .polygonCapColor(d => d.__cap)
+        .polygonSideColor(d => d.__side)
+        .polygonStrokeColor(() => 'rgba(140,190,230,0.22)')
+        .polygonsTransitionDuration(0)
+        .arcsData(arcs)
+        .arcColor(d => d.risk ? '#ff6b6b' : '#4fc3ff')
+        .arcAltitudeAutoScale(0.35)
+        .arcStroke(0.45)
+        .arcDashLength(0.35)
+        .arcDashGap(0.8)
+        .arcDashAnimateTime(2600)
+        .arcsTransitionDuration(0)
+        .pointsData(points)
+        .pointAltitude(0.008)
+        .pointRadius(d => d.size)
+        .pointColor(d => d.color)
+        .pointsMerge(true)
+        .pointLabel(d => `${d.name}<br/>请求 ${fmt(d.value)}`)
+        .polygonLabel(d => d.__value ? `${d.__name}<br/>请求 ${fmt(d.__value)}` : d.__name);
+    }
+
+    function renderChina(el, chartRefName) {
+      if (!window.CHINA_GEOJSON || typeof echarts === 'undefined') return null;
+      echarts.registerMap('china', window.CHINA_GEOJSON);
+      let chart = chartRefName === 'main' ? chinaMain : chinaMini;
+      if (!chart) {
+        chart = echarts.init(el, null, { renderer: 'canvas' });
+        if (chartRefName === 'main') chinaMain = chart; else chinaMini = chart;
+      }
+      const prov = data.provinces || [];
+      const maxVal = Math.max(1, ...prov.map(p => p.value||0));
+      chart.setOption({
+        backgroundColor: 'transparent',
+        tooltip: { trigger: 'item', formatter: p => p.data ? `${p.name}<br/>请求 ${fmt(p.data.value)}` : p.name },
+        visualMap: {
+          show: chartRefName === 'main',
+          min: 0, max: maxVal, right: 8, bottom: 20,
+          text: ['高','低'], textStyle: { color: '#7f9bb8' },
+          inRange: { color: ['#123a5c', '#1f6fbf', '#3ecbff', '#ffe066'] }
+        },
+        series: [{
+          type: 'map', map: 'china', roam: true, zoom: chartRefName === 'main' ? 1.2 : 1.05,
+          label: { show: chartRefName === 'main', color: '#cfe6ff', fontSize: 10 },
+          itemStyle: { areaColor: '#12263f', borderColor: '#4d7aa8', borderWidth: 0.7 },
+          emphasis: { itemStyle: { areaColor: '#2d6cb0' }, label: { color: '#fff' } },
+          data: prov.map(p => ({ name: p.name, value: p.value, risk: p.risk||0 }))
+        }]
+      }, true);
+      chart.resize();
+      return chart;
+    }
+
+    function setMode(next) {
+      mode = next;
+      $('btnWorld').classList.toggle('active', mode === 'world');
+      $('btnChina').classList.toggle('active', mode === 'china');
+      const globeBox = $('globeBox');
+      const chinaMap = $('chinaMap');
+      if (mode === 'world') {
+        globeBox.style.display = 'flex';
+        chinaMap.style.display = 'none';
+        if (globe && globe.controls()) globe.controls().autoRotate = rotating;
+        resizeGlobe();
+      } else {
+        globeBox.style.display = 'none';
+        chinaMap.style.display = 'block';
+        if (globe && globe.controls()) globe.controls().autoRotate = false;
+        renderChina(chinaMap, 'main');
+      }
+      renderLeftRank();
+      renderBottomChart();
+      renderChina($('chinaMini'), 'mini');
+    }
+
+    function resizeGlobe() {
+      const host = $('globeHost');
+      if (!host || !globe) return;
+      const s = Math.floor(Math.min(host.clientWidth, host.clientHeight));
+      if (s > 10) { globe.width(s); globe.height(s); }
+      if (chinaMini) chinaMini.resize();
+      if (chinaMain && mode === 'china') chinaMain.resize();
+      if (rankChart) rankChart.resize();
+    }
+
+    function renderFlatWorld() {
+      if (typeof echarts === 'undefined' || !window.WORLD_GEOJSON) return false;
+      try {
+        echarts.registerMap('world', window.WORLD_GEOJSON);
+      } catch (e) { /* already registered */ }
+      const host = $('globeHost');
+      host.innerHTML = '<div id="worldFlat" style="width:100%;height:100%;min-height:360px"></div>';
+      worldFlat = echarts.init($('worldFlat'), null, { renderer: 'canvas' });
+      const countries = validCountries(data.countries);
+      const maxVal = Math.max(1, ...countries.map(c => c.value || 0));
+      const seriesData = countries.map(c => ({
+        name: c.map_name || c.name,
+        value: c.value || 0,
+        risk: c.risk || 0,
+      }));
+      worldFlat.setOption({
+        backgroundColor: 'transparent',
+        tooltip: {
+          trigger: 'item',
+          formatter: (p) => {
+            if (!p || p.data == null) return p.name || '';
+            const v = (p.data && p.data.value != null) ? p.data.value : p.value;
+            return `${p.name}<br/>请求: ${fmt(v)}`;
+          }
+        },
+        visualMap: {
+          min: 0,
+          max: maxVal,
+          left: 12,
+          bottom: 12,
+          text: ['高', '低'],
+          textStyle: { color: '#9ab4d0' },
+          inRange: { color: ['#0b2744', '#1a5f9c', '#3ecbff'] },
+        },
+        series: [{
+          type: 'map',
+          map: 'world',
+          roam: true,
+          nameProperty: 'name',
+          itemStyle: {
+            areaColor: '#122033',
+            borderColor: 'rgba(90,160,220,.35)',
+          },
+          emphasis: {
+            label: { show: true, color: '#fff' },
+            itemStyle: { areaColor: '#2a6db0' },
+          },
+          data: seriesData,
+        }],
+        graphic: [{
+          type: 'text',
+          left: 12,
+          top: 12,
+          style: {
+            text: '当前环境无法使用 3D 地球（WebGL 不可用），已切换为平面地图',
+            fill: '#7f9bb8',
+            font: '12px sans-serif',
+          }
+        }]
+      });
+      useFlatWorld = true;
+      return true;
+    }
+
+    function main() {
+      data = window.GLOBE_DATA;
+      if (!data || typeof data !== 'object') {
+        data = {
+          title: 'TrafficEye 访问态势',
+          generated_at: new Date().toLocaleString(),
+          target: { lng: 116.4, lat: 39.9 },
+          summary: { requests: 0, unique_ips: 0, countries: 0, provinces: 0, china_requests: 0, risk_hits: 0 },
+          countries: [],
+          provinces: []
+        };
+      }
+      worldFeatures = (window.WORLD_GEOJSON && window.WORLD_GEOJSON.features) || [];
+      if (!worldFeatures.length) return showErr('缺少 world.js（地图底图数据）。请确认服务器上 Intelligence/world.js 可访问。');
+
+      $('generated').textContent = (data.title || 'TrafficEye') + ' · ' + (data.generated_at || '');
+      renderKpis();
+      renderLeftRank();
+      renderBottomChart();
+      renderChina($('chinaMini'), 'mini');
+
+      const webglOk = canUseWebGL();
+      const globeOk = typeof Globe === 'function';
+      let started3d = false;
+
+      if (webglOk && globeOk) {
+        try {
+          const host = $('globeHost');
+          const s0 = Math.floor(Math.min(host.clientWidth || 600, host.clientHeight || 600));
+          globe = Globe()($('globe'))
+            .width(s0).height(s0)
+            .backgroundColor('rgba(0,0,0,0)')
+            .showAtmosphere(true)
+            .atmosphereColor('#3ecbff')
+            .atmosphereAltitude(0.16)
+            .globeImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-night.jpg')
+            .bumpImageUrl('https://cdn.jsdelivr.net/npm/three-globe/example/img/earth-topology.png');
+          applyGlobe();
+          const ctrl = globe.controls();
+          ctrl.autoRotate = true;
+          ctrl.autoRotateSpeed = 0.45;
+          ctrl.enableDamping = true;
+          ctrl.dampingFactor = 0.08;
+          globe.pointOfView({ lat: 22, lng: 108, altitude: 2.2 }, 0);
+          started3d = true;
+        } catch (e) {
+          console.warn('3D 地球初始化失败，回退平面图', e);
+          globe = null;
+        }
+      }
+
+      if (!started3d) {
+        if (!renderFlatWorld()) {
+          const why = !webglOk
+            ? '当前浏览器 WebGL 被禁用或不可用（常见于关闭硬件加速、远程桌面、部分安全策略）。请在 Chrome 设置中开启「使用硬件加速」，或换一台本机浏览器访问。'
+            : (!globeOk
+              ? 'globe.gl / three.js 脚本加载失败（外网访问 jsDelivr CDN 可能被拦）。请检查能否打开 https://cdn.jsdelivr.net ，或改用内网可访问的 CDN。'
+              : '3D 地球初始化失败，且平面地图也无法渲染。');
+          return showErr(why);
+        }
+      }
+
+      $('loading').style.display = 'none';
+      $('screen').style.visibility = 'visible';
+
+      $('btnWorld').onclick = () => setMode('world');
+      $('btnChina').onclick = () => setMode('china');
+      $('btnRotate').onclick = () => {
+        rotating = !rotating;
+        if (globe && globe.controls()) globe.controls().autoRotate = rotating && mode === 'world';
+        $('btnRotate').textContent = rotating ? '暂停旋转' : '继续旋转';
+      };
+      window.addEventListener('resize', () => {
+        resizeGlobe();
+        if (worldFlat) worldFlat.resize();
+      });
+      setTimeout(resizeGlobe, 50);
+      setTimeout(resizeGlobe, 300);
+    }
+
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', main);
+    else main();
+  </script>
+</body>
+</html>

@@ -1,0 +1,204 @@
+Interface_height: 1600
+Interface_width: 900
+Main_Left_Window_Style: "/* \u8BBE\u7F6E QListWidget \u7684\u80CC\u666F\u8272\u548C\
+  \u5B57\u4F53 */\nQListWidget {\n    background-color: #F5F5F5;  /* \u80CC\u666F\u8272\
+  \ (\u6D45\u7070) */\n    border: none;\n    font-size: 15px;            /* \u5B57\
+  \u4F53\u5927\u5C0F */\n    color: #333333;             /* \u5B57\u4F53\u989C\u8272\
+  \ (\u6DF1\u7070) */\n    outline: none;              /* \u53BB\u9664\u7126\u70B9\
+  \u6846 */\n    padding: 10px 0;            /* \u4E0A\u4E0B\u5185\u8FB9\u8DDD */\n\
+  }\n\n/* \u8BBE\u7F6E\u6BCF\u4E2A\u5217\u8868\u9879\u7684\u6837\u5F0F */\nQListWidget::item\
+  \ {\n    height: 45px;              /* \u9AD8\u5EA6 */\n    padding: 8px 12px; \
+  \        /* \u5185\u8FB9\u8DDD */\n    margin: 6px 10px;          /* \u5916\u8FB9\
+  \u8DDD */\n    border-radius: 10px;       /* \u5706\u89D2 */\n    border: none;\
+  \              /* \u65E0\u8FB9\u6846 */\n}\n\n/* \u8BBE\u7F6E\u9F20\u6807\u60AC\u505C\
+  \u65F6\u5217\u8868\u9879\u7684\u6837\u5F0F (\u7F8E\u5316) */\nQListWidget::item:hover\
+  \ {\n    background-color: #E8F0F8;  /* \u60AC\u505C\u65F6\u80CC\u666F\u8272 (\u975E\
+  \u5E38\u6D45\u7684\u84DD\u8272) */\n    color: #111111;             /* \u60AC\u505C\
+  \u65F6\u5B57\u4F53\u989C\u8272 */\n}\n\n/* \u8BBE\u7F6E\u9009\u4E2D\u65F6\u5217\u8868\
+  \u9879\u7684\u6837\u5F0F (\u539F\u6709\u7684\u6D45\u84DD\u8272\u6E10\u53D8\u5F88\
+  \u5408\u9002\uFF0C\u4FDD\u7559) */\nQListWidget::item:selected {\n    background:\
+  \ qlineargradient(\n        x1:0, y1:0, x2:1, y2:0,\n        stop:0 #E0F7FF, stop:1\
+  \ #A0DFFF\n    );\n    color: black;                 /* \u5B57\u4F53\u989C\u8272\
+  \ */\n    font-weight: bold;\n}\n"
+Main_Right_Window_Style: "/* \u8BBE\u7F6E QTabWidget \u7684\u80CC\u666F\u8272\u3001\
+  \u5706\u89D2\u548C\u5185\u8FB9\u8DDD (\u7F8E\u5316: \u7EDF\u4E00\u5706\u89D2) */\n\
+  QTabWidget {\n    background-color: #F0F0F0;     /* \u80CC\u666F\u8272 (\u6D45\u7070\
+  ) */\n    border-radius: 10px;            /* \u5706\u89D2 (\u4ECE16px\u7EDF\u4E00\
+  \u4E3A10px) */\n    padding: 10px;                  /* \u5185\u8FB9\u8DDD */\n}\n\
+  \n/* \u8BBE\u7F6E QTabWidget::pane \u7684\u6837\u5F0F\uFF0C\u63A7\u5236\u6807\u7B7E\
+  \u9875\u5185\u5BB9\u7684\u5BB9\u5668 (\u7F8E\u5316: \u7EDF\u4E00\u5706\u89D2) */\n\
+  QTabWidget::pane {\n    border: 1px solid #DCDCDC;     /* \u8FB9\u6846 (\u4ECED0D0D0\u8F6F\
+  \u5316\u4E3ADCDCDC) */\n    border-radius: 10px;           /* \u5706\u89D2 (\u4ECE\
+  16px\u7EDF\u4E00\u4E3A10px) */\n    margin: 8px;                   /* \u5916\u8FB9\
+  \u8DDD */\n    background-color: #FFFFFF;     /* \u80CC\u666F\u8272 (\u7EAF\u767D\
+  ) */\n}\n\n/* \u8BBE\u7F6E QTabBar \u4E0A\u5173\u95ED\u6309\u94AE\u7684\u6837\u5F0F\
+  \ */\nQTabBar::close-button {\n    image: url(ico/close.png);      /* \u5173\u95ED\
+  \u6309\u94AE\u56FE\u6807 */\n    subcontrol-position: right;    /* \u5173\u95ED\u6309\
+  \u94AE\u7684\u4F4D\u7F6E */\n    margin-left: 4px;              /* \u5DE6\u4FA7\u8FB9\
+  \u8DDD */\n}\n\n/* \u8BBE\u7F6E QTabBar \u4E0A\u5173\u95ED\u6309\u94AE\u5728\u9F20\
+  \u6807\u60AC\u505C\u65F6\u7684\u6837\u5F0F (\u7EA2\u8272\u9AD8\u4EAE\u4FDD\u7559\
+  ) */\nQTabBar::close-button:hover {\n    background-color: #E81123;     /* \u60AC\
+  \u505C\u65F6\u80CC\u666F\u8272 (\u7EA2\u8272) */\n    border-radius: 4px;      \
+  \      /* \u5706\u89D2 */\n}\n"
+Main_Window_Style: "/* --- 1. \u5168\u5C40\u4E0E\u7A97\u53E3 --- */\n\n/* \u60AC\u6D6E\
+  \u63D0\u793A\u6846 */\nQToolTip {\n    background-color: #F0F0F0;    /* \u6D45\u8272\
+  \u80CC\u666F */\n    color: #111111;             /* \u6DF1\u8272\u6587\u5B57 */\n\
+  \    border: 1px solid #0078D7;   /* \u84DD\u8272\u8FB9\u6846 (\u4FDD\u7559) */\n\
+  \    padding: 5px;\n    border-radius: 5px;\n    font-size: 12px;\n}\n\n/* \u4E3B\
+  \u7A97\u53E3 */\nQMainWindow {\n    background-color: #F5F5F5;    /* \u6D45\u7070\
+  \u80CC\u666F */\n}\n\n/* \u9ED8\u8BA4\u63A7\u4EF6 (\u7F8E\u5316: \u6DFB\u52A0\u5168\
+  \u5C40\u5B57\u4F53\u6808) */\nQWidget {\n    color: #222222; /* \u9ED8\u8BA4\u5B57\
+  \u4F53\u989C\u8272 (\u6DF1\u7070) */\n    /* \u4F18\u5148\u4F7F\u7528\u7CFB\u7EDF\
+  UI\u5B57\u4F53, \u5176\u6B21\u662F\u5FAE\u8F6F\u96C5\u9ED1/\u82F9\u65B9, \u6700\u540E\
+  \u662F\u65E0\u886C\u7EBF\u5B57\u4F53 */\n    font-family: \"Segoe UI\", \"Microsoft\
+  \ YaHei\", \"PingFang SC\", \"Arial\", sans-serif;\n}\n\n/* --- 2. \u5BB9\u5668\u4E0E\
+  \u5E03\u5C40 --- */\n\n/* \u6807\u7B7E\u9875\u5185\u5BB9\u9762\u677F */\nQTabWidget::pane\
+  \ {\n    border: 1px solid #DCDCDC; /* \u8FB9\u6846\u8F6F\u5316 */\n    border-radius:\
+  \ 4px;\n    padding: 4px;\n    background: #FFFFFF; /* \u7EAF\u767D\u80CC\u666F\
+  \ */\n}\n\n/* \u5206\u7EC4\u6846 (\u7F8E\u5316: \u8FB9\u6846\u8F6F\u5316) */\nQGroupBox\
+  \ {\n    background-color: #F0F0F0;  /* \u6D45\u7070\u80CC\u666F */\n    border:\
+  \ 1px solid #DCDCDC;  /* \u6D45\u7070\u8FB9\u6846 (\u4ECECCCCCC\u8F6F\u5316) */\n\
+  \    border-radius: 5px;\n    margin-top: 10px;\n}\nQGroupBox::title {\n    subcontrol-origin:\
+  \ margin;\n    subcontrol-position: top left;\n    padding: 0 5px 5px 5px;\n   \
+  \ color: #007ACC; /* \u7EC4\u6807\u9898\u4F7F\u7528\u84DD\u8272 */\n    font-weight:\
+  \ bold;\n}\n\n/* \u5206\u5272\u5668 Handle */\nQSplitter::handle {\n    background:\
+  \ #D0D0D0; /* \u6D45\u7070 */\n}\n\n/* --- 3. \u63A7\u4EF6 - \u6309\u94AE\u4E0E\u8F93\
+  \u5165 (\u7F8E\u5316: \u533A\u5206\u4E3B\u6B21\u6309\u94AE) --- */\n\n/* \u6587\u672C\
+  \u6846 (\u591A\u884C\u4E0E\u5355\u884C) (\u7F8E\u5316: \u8FB9\u6846\u8F6F\u5316\
+  ) */\nQLineEdit, QTextEdit, QComboBox {\n    background-color: #FFFFFF; /* \u7EAF\
+  \u767D\u80CC\u666F */\n    color: #222222;           /* \u6DF1\u8272\u6587\u5B57\
+  \ */\n    border: 1px solid #DCDCDC; /* \u7070\u8272\u8FB9\u6846 (\u4ECEBDBDBD\u8F6F\
+  \u5316) */\n    border-radius: 4px;\n    padding: 6px;\n}\nQLineEdit:focus, QTextEdit:focus,\
+  \ QComboBox:focus {\n    border: 1px solid #007ACC; /* \u7126\u70B9\u65F6\u9AD8\u4EAE\
+  \ (\u4FDD\u7559\u84DD\u8272) */\n}\n\n/* \u6309\u94AE - \u9ED8\u8BA4\u72B6\u6001\
+  \ (\u6539\u4E3A\u6B21\u8981/\u4E8C\u7EA7\u6309\u94AE\u6837\u5F0F) */\nQPushButton\
+  \ {\n    background-color: #FFFFFF; /* \u6539\u4E3A\u767D\u8272\u80CC\u666F */\n\
+  \    color: #333333;           /* \u6DF1\u7070\u8272\u6587\u5B57 */\n    border:\
+  \ 1px solid #DCDCDC; /* \u6D45\u7070\u8272\u8FB9\u6846 */\n    border-radius: 4px;\n\
+  \    padding: 8px 16px;\n    min-width: 80px;\n}\n\n/* \u6309\u94AE - \u60AC\u505C\
+  \u72B6\u6001 (\u6B21\u8981) */\nQPushButton:hover {\n    background-color: #F8F8F8;\
+  \ /* \u60AC\u505C\u65F6\u975E\u5E38\u6D45\u7684\u7070\u8272 */\n    border-color:\
+  \ #C0C0C0;     /* \u8FB9\u6846\u7A0D\u6DF1 */\n}\n\n/* \u6309\u94AE - \u6309\u4E0B\
+  \u72B6\u6001 (\u6B21\u8981) */\nQPushButton:pressed {\n    background-color: #F0F0F0;\
+  \ /* \u6309\u4E0B\u65F6\u7A0D\u6DF1 */\n}\n\n/* \u6309\u94AE - \u7981\u7528\u72B6\
+  \u6001 */\nQPushButton:disabled {\n    background-color: #EEEEEE; /* \u7981\u7528\
+  \u7070 */\n    color: #A0A0A0;\n    border-color: #E0E0E0; /* \u8FB9\u6846\u4E5F\
+  \u53D8\u7070 */\n}\n\n/* \u6309\u94AE - \u4E3B\u8981\u6309\u94AE (PrimaryButton)\
+  \ \u6837\u5F0F (\u65B0\u589E) */\n/* \u5728\u4EE3\u7801\u4E2D\u7528 .setObjectName(\"\
+  PrimaryButton\") \u6765\u5E94\u7528 */\nQPushButton#PrimaryButton {\n    background-color:\
+  \ #007BFF; /* \u4F7F\u7528\u4F60\u7684\u4E3B\u9898\u84DD\u8272 */\n    color: #FFFFFF;\
+  \           /* \u767D\u8272\u6587\u5B57 */\n    border: none;             /* \u65E0\
+  \u8FB9\u6846 */\n}\n\n/* \u6309\u94AE - \u4E3B\u8981\u6309\u94AE\u60AC\u505C */\n\
+  QPushButton#PrimaryButton:hover {\n    background-color: #006CE0; /* \u60AC\u505C\
+  \u65F6\u7A0D\u6697 */\n}\n\n/* \u6309\u94AE - \u4E3B\u8981\u6309\u94AE\u6309\u4E0B\
+  \ */\nQPushButton#PrimaryButton:pressed {\n    background-color: #0059B8; /* \u6309\
+  \u4E0B\u65F6\u66F4\u6697 */\n}\n\n/* \u6309\u94AE - \u4E3B\u8981\u6309\u94AE\u7981\
+  \u7528 */\nQPushButton#PrimaryButton:disabled {\n    background-color: #A0CFFF;\
+  \ /* \u7981\u7528\u7684\u84DD\u8272 */\n    color: #E0E0E0;\n    border: none;\n\
+  }\n\n\n/* \u590D\u9009\u6846 */\nQCheckBox {\n    spacing: 5px;\n    color: #222222;\
+  \ /* \u6DF1\u8272\u6587\u5B57 */\n}\n\n/* \u590D\u9009\u6846\u6307\u793A\u5668 */\n\
+  QCheckBox::indicator {\n    width: 16px;\n    height: 16px;\n}\n\n/* \u590D\u9009\
+  \u6846 - \u9009\u4E2D */\nQCheckBox::indicator:checked {\n    background-color:\
+  \ #007BFF; /* \u4FDD\u7559\u84DD\u8272 */\n    border: 1px solid #007BFF;\n}\n\n\
+  /* \u590D\u9009\u6846 - \u672A\u9009\u4E2D (\u7F8E\u5316: \u8FB9\u6846\u8F6F\u5316\
+  ) */\nQCheckBox::indicator:unchecked {\n    background-color: #FFFFFF; /* \u7EAF\
+  \u767D */\n    border: 1px solid #DCDCDC; /* \u7070\u8272\u8FB9\u6846 (\u4ECEBDBDBD\u8F6F\
+  \u5316) */\n}\n\n/* --- 4. \u63A7\u4EF6 - \u663E\u793A --- */\n\n/* \u6807\u7B7E\
+  \ */\nQLabel {\n    color: #222222; /* \u6DF1\u8272\u6587\u5B57 */\n}\n\n/* \u8FDB\
+  \u5EA6\u6761 (\u7F8E\u5316: \u8FB9\u6846\u8F6F\u5316) */\nQProgressBar {\n    border:\
+  \ 1px solid #DCDCDC; /* (\u4ECEBDBDBD\u8F6F\u5316) */\n    border-radius: 3px;\n\
+  \    text-align: center;\n    background-color: #EEEEEE; /* \u6D45\u7070\u80CC\u666F\
+  \ */\n}\n\n/* \u8FDB\u5EA6\u6761 - \u5757 */\nQProgressBar::chunk {\n    background-color:\
+  \ #4CAF50; /* \u7EFF\u8272 (\u4FDD\u7559) */\n    width: 10px;\n}\n\n/* --- 5. \u63A7\
+  \u4EF6 - \u8868\u683C --- */\n\n/* \u8868\u683C\u63A7\u4EF6 */\nQTableWidget {\n\
+  \    background-color: #FFFFFF;     /* \u7EAF\u767D\u80CC\u666F */\n    color: #222222;\
+  \               /* \u6DF1\u8272\u6587\u5B57 */\n    gridline-color: #E0E0E0;   \
+  \  /* \u6D45\u7070\u7F51\u683C */\n    border: 1px solid #DCDCDC;    /* \u8FB9\u6846\
+  \u8F6F\u5316 */\n    alternate-background-color: #F6F6F6; /* \u6591\u9A6C\u7EB9\
+  \ (\u6781\u6D45\u7070) */\n    selection-background-color: #D0E8FF; /* \u9009\u4E2D\
+  \u80CC\u666F (\u6D45\u84DD) */\n}\n\n/* \u8868\u5934 (\u7F8E\u5316: \u73B0\u4EE3\
+  \u5316\u6837\u5F0F) */\nQHeaderView::section {\n    background-color: #F9F9F9; /*\
+  \ \u6781\u6D45\u7070\u80CC\u666F (\u539F#E8E8E8) */\n    color: #333333;       \
+  \    /* \u6DF1\u7070\u8272\u6587\u5B57 */\n    padding: 8px 5px;          /* \u589E\
+  \u52A0\u5782\u76F4\u5185\u8FB9\u8DDD */\n    border: none;              /* \u79FB\
+  \u9664\u65E7\u8FB9\u6846 */\n    border-bottom: 2px solid #E0E0E0; /* \u4EC5\u4FDD\
+  \u7559\u5E95\u90E8\u8FB9\u6846 */\n    font-weight: bold;\n}\n\n/* \u8868\u683C\u5355\
+  \u5143\u683C */\nQTableWidget::item {\n    padding: 5px;\n    border-bottom: 1px\
+  \ solid #E0E0E0; /* \u6D45\u7070\u8FB9\u6846 */\n}\n\n/* \u8868\u683C\u5355\u5143\
+  \u683C - \u9009\u4E2D */\nQTableWidget::item:selected {\n    background-color: #B0D7FF;\
+  \ /* \u9009\u4E2D\u84DD */\n    color: #000000;           /* \u9ED1\u8272\u6587\u5B57\
+  \ */\n}\n\n/* \u8868\u683C\u5355\u5143\u683C - \u60AC\u505C */\nQTableWidget::item:hover\
+  \ {\n    background-color: #E8F5FF; /* \u60AC\u505C (\u6781\u6D45\u84DD) */\n}\n\
+  \n/* --- 6. \u63A7\u4EF6 - \u83DC\u5355\u4E0E\u5DE5\u5177\u680F --- */\n\n/* \u83DC\
+  \u5355\u680F */\nQMenuBar {\n    background-color: #E8E8E8; /* \u6D45\u7070 */\n\
+  \    color: #111111;\n    border-bottom: 1px solid #D0D0D0;\n}\nQMenuBar::item {\n\
+  \    background-color: transparent;\n    padding: 5px 10px;\n}\nQMenuBar::item:selected\
+  \ {\n    background-color: #D0D0D0; /* \u9009\u4E2D\u7070 */\n}\n\n/* \u4E0B\u62C9\
+  \u83DC\u5355 (\u7F8E\u5316: \u8FB9\u6846\u8F6F\u5316) */\nQMenu {\n    background-color:\
+  \ #FFFFFF;   /* \u7EAF\u767D */\n    border: 1px solid #DCDCDC;   /* \u7070\u8272\
+  \u8FB9\u6846 (\u4ECEBDBDBD\u8F6F\u5316) */\n    color: #111111;\n}\nQMenu::item:selected\
+  \ {\n    background-color: #007ACC;   /* \u84DD\u8272 (\u4FDD\u7559) */\n    color:\
+  \ #FFFFFF;\n}\nQMenu::separator {\n    height: 1px;\n    background: #E0E0E0; /*\
+  \ \u6D45\u7070\u5206\u5272\u7EBF */\n    margin: 4px 0;\n}\n\n/* \u5DE5\u5177\u680F\
+  \ */\nQToolBar {\n    background-color: #F0F0F0;\n    border: none;\n    spacing:\
+  \ 5px;\n    padding: 5px;\n}\n\n/* \u5DE5\u5177\u680F\u6309\u94AE */\nQToolButton\
+  \ {\n    padding: 5px;\n}\n\n/* \u72B6\u6001\u680F */\nQStatusBar {\n    background-color:\
+  \ #E8E8E8;\n    color: #111111;\n}\n\n/* --- 7. \u63A7\u4EF6 - \u6EDA\u52A8\u6761\
+  \ --- */\n\n/* \u6EDA\u52A8\u6761 - \u5782\u76F4\u548C\u6C34\u5E73 */\nQScrollBar:vertical,\
+  \ QScrollBar:horizontal {\n    background: #F5F5F5; /* \u6EDA\u52A8\u6761\u8F68\u9053\
+  \u80CC\u666F */\n    border: none;\n    margin: 0px;\n}\n\n/* \u6EDA\u52A8\u6761\
+  \ - \u6ED1\u5757 */\nQScrollBar::handle:vertical, QScrollBar::handle:horizontal\
+  \ {\n    background: #C0C0C0; /* \u7070\u8272\u6ED1\u5757 */\n    min-height: 20px;\n\
+  \    min-width: 20px;\n    border-radius: 4px;\n}\n\n/* \u6EDA\u52A8\u6761 - \u6ED1\
+  \u5757\u60AC\u505C */\nQScrollBar::handle:hover {\n    background: #A0A0A0; /* \u7A0D\
+  \u6DF1 */\n}\n\n/* \u6EDA\u52A8\u6761 - \u4E24\u7AEF\u7BAD\u5934 (\u9690\u85CF)\
+  \ */\nQScrollBar::add-line:vertical, QScrollBar::sub-line:vertical,\nQScrollBar::add-line:horizontal,\
+  \ QScrollBar::sub-line:horizontal {\n    background: none;\n    border: none;\n\
+  \    height: 0px;\n    width: 0px;\n}\n\n/* \u6EDA\u52A8\u6761 - \u6EDA\u52A8\u533A\
+  \u57DF */\nQScrollBar::add-page:vertical, QScrollBar::sub-page:vertical,\nQScrollBar::add-page:horizontal,\
+  \ QScrollBar::sub-page:horizontal {\n    background: none;\n}\n\n/* --- 8. \u63A7\
+  \u4EF6 - \u6D88\u606F\u6846 --- */\n\n/* \u6D88\u606F\u6846 */\nQMessageBox {\n\
+  \    background-color: #F5F5F5; /* \u6D45\u7070\u80CC\u666F */\n    color: #111111;\n\
+  \    font-size: 14px;\n}\n\n/* \u6D88\u606F\u6846 - \u6807\u7B7E */\nQMessageBox\
+  \ QLabel {\n    color: #111111;\n}\n\n/* \u6D88\u606F\u6846 - \u6309\u94AE (\u7EE7\
+  \u627F\u5168\u5C40 QPushButton \u6837\u5F0F) */\nQMessageBox QPushButton {\n   \
+  \ /* \u7EE7\u627F\u5168\u5C40\u7684\u6B21\u8981\u6309\u94AE\u6837\u5F0F */\n   \
+  \ padding: 6px 12px;\n    min-width: 60px;\n}\n\n/* --- 3b. \u4EEA\u8868\u76D8\u5FEB\
+  \u901F\u64CD\u4F5C\u6309\u94AE (\u65B0\u589E) --- */\n/* \u8FD9\u4E9B\u662F\u4EEA\
+  \u8868\u76D8\u4E0A\u7684\u5F69\u8272\u5927\u6309\u94AE.\n  \u901A\u7528\u6837\u5F0F\
+  \ (\u6765\u81EA Python 'btn_style')\n*/\nQPushButton#AnalyzeButton, \nQPushButton#ReplayButton,\
+  \ \nQPushButton#StatsButton {\n    padding: 12px 24px;\n    border-radius: 6px;\n\
+  \    font-size: 14px;\n    font-weight: bold;\n    border: none;\n    min-width:\
+  \ 120px;\n    color: white; /* \u7EDF\u4E00\u767D\u5B57 */\n}\n\n/* --- 3b. \u4EEA\
+  \u8868\u76D8\u5FEB\u901F\u64CD\u4F5C\u6309\u94AE (\u7F8E\u5316: \u7EDF\u4E00\u4E3A\
+  \u767D\u8272) --- */\n/*\n  \u8FD9\u4E9B\u662F\u4EEA\u8868\u76D8\u4E0A\u7684\u5927\
+  \u6309\u94AE.\n  \u6211\u4EEC\u4FDD\u7559\u5B83\u4EEC\u539F\u6709\u7684\u5C3A\u5BF8\
+  \u548C\u5B57\u4F53\uFF0C\u4F46\u5E94\u7528\u5168\u5C40\u7684\u201C\u6B21\u8981\u6309\
+  \u94AE\u201D\u6837\u5F0F\u3002\n*/\nQPushButton#AnalyzeButton, \nQPushButton#ReplayButton,\
+  \ \nQPushButton#StatsButton {\n    /* \u4FDD\u6301\u539F\u6709\u7684\u5C3A\u5BF8\
+  \u548C\u5B57\u4F53 */\n    padding: 12px 24px;\n    border-radius: 6px;\n    font-size:\
+  \ 14px;\n    font-weight: bold;\n    min-width: 120px;\n\n    /* \u5E94\u7528\u65B0\
+  \u7684\u201C\u504F\u767D\u201D\u6837\u5F0F (\u57FA\u4E8E\u5168\u5C40\u6B21\u8981\
+  \u6309\u94AE) */\n    background-color: #FFFFFF; /* \u767D\u8272\u80CC\u666F */\n\
+  \    color: #333333;           /* \u6DF1\u7070\u8272\u6587\u5B57 */\n    border:\
+  \ 1px solid #DCDCDC; /* \u6D45\u7070\u8272\u8FB9\u6846 */\n}\n\n/* -- \u7EDF\u4E00\
+  \u7684\u60AC\u505C\u6837\u5F0F -- */\nQPushButton#AnalyzeButton:hover, \nQPushButton#ReplayButton:hover,\
+  \ \nQPushButton#StatsButton:hover {\n    background-color: #F8F8F8; /* \u60AC\u505C\
+  \u65F6\u975E\u5E38\u6D45\u7684\u7070\u8272 */\n    border-color: #C0C0C0;     /*\
+  \ \u8FB9\u6846\u7A0D\u6DF1 */\n}\n\n/* -- \u7EDF\u4E00\u7684\u6309\u4E0B\u6837\u5F0F\
+  \ -- */\nQPushButton#AnalyzeButton:pressed, \nQPushButton#ReplayButton:pressed,\
+  \ \nQPushButton#StatsButton:pressed {\n    background-color: #F0F0F0; /* \u6309\u4E0B\
+  \u65F6\u7A0D\u6DF1 */\n}\n/* --- 9. \u4EEA\u8868\u76D8\u7279\u5B9A\u6837\u5F0F (\u65B0\
+  \u589E) --- */\n\n/* \u7EDF\u8BA1\u5361\u7247 (\u66FF\u6362 #858383 \u7684\u786C\
+  \u7F16\u7801) */\nQWidget#StatCard {\n    background-color: #F9F9F9;\n    border:\
+  \ 1px solid #E0E0E0;\n    border-radius: 6px;\n}\n\n/* \u7EDF\u8BA1\u5361\u7247\
+  \ - \u6570\u503C (\u66FF\u6362 color: #FFFFFF \u7684\u786C\u7F16\u7801) */\nQLabel#StatValue\
+  \ {\n    font-size: 28px;\n    font-weight: bold;\n    color: #222222; /* \u6DF1\
+  \u8272\u6587\u5B57 */\n    background-color: transparent;\n}"
+language: zh
+last_dns_path: "D:\\\u684C\u9762\\\u4EE3\u7801\\\u6D41\u91CF\u5206\u6790\u9879\u76EE\
+  \u6253\u5305\\output\\dns_for_pcap_1785727811.json"
+last_dns_source: "D:\\\u684C\u9762\\\u4EE3\u7801\\\u6D41\u91CF\u5206\u6790\u9879\u76EE\
+  \u6253\u5305\\output\\dns_1785727812.json"
+last_dns_stats: "D:\\\u684C\u9762\\\u4EE3\u7801\\\u6D41\u91CF\u5206\u6790\u9879\u76EE\
+  \u6253\u5305\\output\\output_pcap_1785727811.json"
