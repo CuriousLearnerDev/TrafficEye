@@ -5,16 +5,14 @@
 
 ![](https://zssnp-1301606049.cos.ap-nanjing.myqcloud.com/img/2025-06-03_11-45.png)
 
-### 📥 已经打包好的下载地址：
+### 📥 运行：
 
 GIhutb下载地址：👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
-
-## 源码运行
 
 需要 **Python 3.10+**
 
 ```bash
-git clone https://github.com/CuriousLearnerDev/TrafficEye.git
+解压下载好的文件
 cd TrafficEye
 python -m venv .venv
 # Windows: .venv\Scripts\activate

@@ -8,12 +8,9 @@ English | [中文](./README_CN.md)
 
 GitHub Releases: 👉 https://github.com/CuriousLearnerDev/TrafficEye/releases
 
-## Run from Source
-
 Requires **Python 3.10+**
 
 ```bash
-git clone https://github.com/CuriousLearnerDev/TrafficEye.git
 cd TrafficEye
 python -m venv .venv
 # Windows: .venv\Scripts\activate
